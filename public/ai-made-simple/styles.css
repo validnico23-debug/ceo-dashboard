@@ -118,7 +118,7 @@ button { font-family: inherit; }
   gap: 10px;
   width: 100%;
   padding: 18px 22px;
-  font-size: calc(1.05rem * var(--font-scale) / var(--font-scale));
+  font-size: 1.05rem;
   font-weight: 700;
   border-radius: var(--radius-md);
   border: none;

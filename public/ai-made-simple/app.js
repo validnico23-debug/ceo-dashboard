@@ -229,6 +229,14 @@ function loadState() {
   } catch (e) { return defaultState(); }
 }
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function refreshMonthIfNeeded() {
+  const key = monthKey();
+  if (state.monthKey !== key) {
+    state.monthKey = key;
+    state.tasksCompletedThisMonth = 0;
+    saveState();
+  }
+}
 
 /* =========================================================================
    NAVIGATION
@@ -295,6 +303,17 @@ function toggleMic(targetId) {
 }
 function speak(text) {
   if (!window.speechSynthesis) { showToast("Reading aloud isn't available in this browser."); return; }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.95;
+  window.speechSynthesis.speak(u);
+}
+// Auto-reads a step/lesson aloud when the "Voice Instructions" setting is on.
+// Silently does nothing if unsupported or the setting/plan doesn't allow it —
+// unlike speak(), this is not a direct user action, so it shouldn't toast.
+function maybeAutoSpeak(text) {
+  if (state.plan !== "premium" || !state.accessibility.voiceNarration) return;
+  if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.rate = 0.95;
@@ -377,7 +396,7 @@ function renderOnboarding(step) {
   const q = ONBOARDING_QUESTIONS[step - 1];
   const selected = state.onboarding[q.key];
   return `
-  ${topBar({ back: step > 1 })}
+  ${topBar()}
   <div class="screen">
     ${progressBar(step, 3, `Question ${step} of 3`)}
     <h1 class="page-title">${esc(q.title)}</h1>
@@ -564,6 +583,7 @@ function renderGuide(params) {
   const tone = params.tone || null;
   const prompt = generatePrompt(task.id, params.answer, tone);
   const instructionText = simple ? stepData.simple : stepData.title;
+  maybeAutoSpeak(instructionText);
 
   let body = "";
   if (stepData.kind === "open") {
@@ -606,13 +626,14 @@ function renderGuide(params) {
     <div style="margin-top:20px;">${body}</div>
   </div>`;
 }
-function guideNav(params) {
-  return `data-task="${params.task}" data-answer="${esc(params.answer)}" data-tool="${params.tool}" data-step="${params.step || 1}" data-simple="${!!params.simple}" data-tone="${params.tone || ""}"`;
+function guideNav(params, overrideTone) {
+  const tone = overrideTone !== undefined ? overrideTone : (params.tone || "");
+  return `data-task="${params.task}" data-answer="${esc(params.answer)}" data-tool="${params.tool}" data-step="${params.step || 1}" data-simple="${!!params.simple}" data-tone="${tone}"`;
 }
 function toneChip(key, value, label, params) {
   const locked = state.plan !== "premium";
   const active = params.tone === value;
-  return `<button class="chip ${locked ? "locked" : ""} ${active ? "active" : ""}" data-action="setTone" data-tone="${value}" ${guideNav(params)}>${esc(label)}${locked ? `<span class="lock-tag">${icon("lock")}</span>` : ""}</button>`;
+  return `<button class="chip ${locked ? "locked" : ""} ${active ? "active" : ""}" data-action="setTone" ${guideNav(params, value)}>${esc(label)}${locked ? `<span class="lock-tag">${icon("lock")}</span>` : ""}</button>`;
 }
 
 /* =========================================================================
@@ -710,6 +731,7 @@ function renderLessonDetail(params) {
   const lesson = (LESSONS[params.ai] || []).find((l) => l.id === params.lesson);
   const simple = !!params.simple;
   const bodyText = simple ? simplifyText(lesson.body) : lesson.body;
+  maybeAutoSpeak(`${lesson.title}. ${bodyText}`);
   return `
   ${topBar()}
   <div class="screen">
@@ -961,6 +983,7 @@ const actions = {
     const task = ds.task;
     const answer = (nav.params.answer || "").trim();
     if (!answer) return;
+    refreshMonthIfNeeded();
     if (state.plan !== "premium" && state.tasksCompletedThisMonth >= 5) {
       goTo("limit-reached");
       return;
@@ -979,10 +1002,15 @@ const actions = {
   },
   copyPrompt() {
     const text = document.getElementById("prompt-text").innerText;
-    copyText(text);
     const btn = document.getElementById("copy-btn");
-    if (btn) { btn.innerHTML = `${icon("check")} Copied!`; }
-    showToast("Message copied — now go paste it!");
+    copyText(text).then((ok) => {
+      if (ok) {
+        if (btn) { btn.innerHTML = `${icon("check")} Copied!`; }
+        showToast("Message copied — now go paste it!");
+      } else {
+        showToast("We couldn't copy that automatically — please select the message above and copy it by hand.");
+      }
+    });
   },
   guideNext(ds) {
     const nextStep = Number(ds.step) + 1;
@@ -990,8 +1018,7 @@ const actions = {
   },
   taskWorked(ds) {
     if (state.plan !== "premium") {
-      const key = monthKey();
-      if (state.monthKey !== key) { state.monthKey = key; state.tasksCompletedThisMonth = 0; }
+      refreshMonthIfNeeded();
       state.tasksCompletedThisMonth += 1;
       saveState();
     }
@@ -1006,7 +1033,11 @@ const actions = {
   },
   copySaved(ds) {
     const item = state.savedItems.find((i) => String(i.id) === ds.id);
-    if (item) { copyText(item.prompt); showToast("Copied!"); }
+    if (item) {
+      copyText(item.prompt).then((ok) => {
+        showToast(ok ? "Copied!" : "We couldn't copy that automatically — please select and copy it by hand.");
+      });
+    }
   },
   openTool(ds) { window.open(ds.url, "_blank", "noopener"); },
   openLesson(ds) { goTo("lesson-detail", { ai: ds.ai, lesson: ds.lesson, simple: false }); },
@@ -1054,15 +1085,18 @@ const actions = {
 
 function copyText(text) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
-  } else fallbackCopy(text);
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopy(text));
+  }
+  return Promise.resolve(fallbackCopy(text));
 }
 function fallbackCopy(text) {
   const ta = document.createElement("textarea");
   ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
   document.body.appendChild(ta); ta.focus(); ta.select();
-  try { document.execCommand("copy"); } catch (e) {}
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
   document.body.removeChild(ta);
+  return ok;
 }
 
 /* =========================================================================
