@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CEO Dashboard</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <nav class="appbar">
+    <div class="brand"><span class="mark">C</span> CEO Dashboard <span class="biz-name" id="biz-name"></span></div>
+    <div class="user">
+      <span id="user-email"></span>
+      <button class="btn small" id="logout-btn">Log out</button>
+    </div>
+  </nav>
+
+  <section class="briefing card" id="briefing">
+    <div class="briefing-head">
+      <div class="avatar" id="ceo-initial">?</div>
+      <div>
+        <div class="name" id="ceo-name">Loading…</div>
+        <div class="role" id="ceo-time"></div>
+      </div>
+    </div>
+    <div class="briefing-summary" id="briefing-summary">Loading briefing…</div>
+    <div class="briefing-cols">
+      <div class="briefing-col">
+        <h3>What got done</h3>
+        <ul class="briefing-list" id="done-list"></ul>
+      </div>
+      <div class="briefing-col">
+        <h3>Today's plan</h3>
+        <ul class="briefing-list" id="plan-list"></ul>
+      </div>
+    </div>
+    <div class="watchlist" id="watchlist-wrap" style="display:none">
+      <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin:0">Needs your attention</h3>
+      <ul id="watchlist"></ul>
+    </div>
+  </section>
+
+  <div class="metrics-row" id="metrics-row"></div>
+
+  <div class="sections">
+    <div class="card">
+      <div class="section-title">Task Board</div>
+      <div class="board">
+        <div class="board-col">
+          <h4>To Do</h4>
+          <div id="col-todo"></div>
+        </div>
+        <div class="board-col">
+          <h4>In Progress</h4>
+          <div id="col-in_progress"></div>
+        </div>
+        <div class="board-col">
+          <h4>Done</h4>
+          <div id="col-done"></div>
+        </div>
+      </div>
+      <form class="inline-form" id="task-form">
+        <input type="text" name="title" placeholder="New task…" required />
+        <select name="department" class="dept-select"></select>
+        <input type="text" name="assignee" placeholder="Assignee" list="team-list" />
+        <select name="priority">
+          <option value="high">High</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <input type="date" name="dueDate" />
+        <button class="btn primary" type="submit">Add task</button>
+      </form>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="section-title">Team &amp; Ops Log</div>
+        <div class="feed" id="updates-feed"></div>
+        <form class="inline-form" id="update-form">
+          <input type="text" name="author" placeholder="Name" list="team-list" style="flex:0 1 90px" />
+          <select name="department" class="dept-select"></select>
+          <select name="type">
+            <option value="update">Update</option>
+            <option value="blocker">Blocker</option>
+          </select>
+          <input type="text" name="text" placeholder="What's happening?" required />
+          <button class="btn primary" type="submit">Post</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Customer &amp; Marketing Pulse</div>
+        <div class="feed" id="pulse-feed"></div>
+        <form class="inline-form" id="pulse-form">
+          <input type="text" name="customer" placeholder="Customer" style="flex:0 1 120px" />
+          <select name="source">
+            <option value="lead">Lead</option>
+            <option value="review">Review</option>
+            <option value="complaint">Complaint</option>
+          </select>
+          <select name="sentiment">
+            <option value="positive">Positive</option>
+            <option value="neutral" selected>Neutral</option>
+            <option value="negative">Negative</option>
+          </select>
+          <input type="text" name="text" placeholder="Note…" required />
+          <button class="btn primary" type="submit">Post</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <datalist id="team-list"></datalist>
+
+  <div class="card" id="agents-card">
+    <div class="section-title">
+      AI Agents
+      <button class="btn small" id="run-agents-btn">Run agents now</button>
+    </div>
+    <p class="agents-sub" id="agents-sub"></p>
+    <div class="agent-grid" id="agent-grid"></div>
+    <div class="feed" id="agent-log-feed" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card" id="settings-card">
+    <div class="section-title">Settings</div>
+    <div class="sections">
+      <div>
+        <h4 style="margin:0 0 8px;font-size:13px">Business</h4>
+        <form class="inline-form" id="business-form">
+          <input type="text" name="name" placeholder="Business name" />
+          <input type="text" name="ceoName" placeholder="CEO name" />
+          <button class="btn primary" type="submit">Save</button>
+        </form>
+
+        <h4 style="margin:18px 0 8px;font-size:13px">Real figures</h4>
+        <form class="inline-form" id="metrics-form">
+          <input type="number" name="cashOnHand" placeholder="Cash on hand" style="flex:0 1 130px" />
+          <input type="number" name="cashLastWeek" placeholder="Cash last week" style="flex:0 1 130px" />
+          <input type="number" name="weeklyRevenue" placeholder="Weekly revenue" style="flex:0 1 130px" />
+          <input type="number" name="revenueTarget" placeholder="Revenue target" style="flex:0 1 130px" />
+          <input type="number" name="overdueInvoicesTotal" placeholder="Overdue $ total" style="flex:0 1 130px" />
+          <input type="number" name="overdueInvoicesCount" placeholder="Overdue # count" style="flex:0 1 130px" />
+          <button class="btn primary" type="submit">Save figures</button>
+        </form>
+      </div>
+
+      <div>
+        <h4 style="margin:0 0 8px;font-size:13px">Departments</h4>
+        <div class="feed" id="departments-list" style="margin-bottom:8px"></div>
+        <form class="inline-form" id="department-form">
+          <input type="text" name="name" placeholder="New department…" required />
+          <button class="btn primary" type="submit">Add</button>
+        </form>
+
+        <h4 style="margin:18px 0 8px;font-size:13px">Team</h4>
+        <div class="feed" id="team-list-display" style="margin-bottom:8px"></div>
+        <form class="inline-form" id="team-form">
+          <input type="text" name="name" placeholder="Name" required style="flex:0 1 100px" />
+          <input type="text" name="role" placeholder="Role" style="flex:0 1 130px" />
+          <select name="department" class="dept-select"></select>
+          <button class="btn primary" type="submit">Add</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer class="hint">Cash/revenue/invoice figures are entered manually in Settings until QuickBooks, PayPal, HubSpot, Gmail &amp; Calendar are authorized as connectors.</footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

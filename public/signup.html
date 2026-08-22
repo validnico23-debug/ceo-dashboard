@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sign up — CEO Dashboard</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="mark">C</div>
+    <h1>Create your workspace</h1>
+    <p class="sub">Set up a private CEO dashboard for your business.</p>
+    <div class="auth-error" id="error"></div>
+    <form class="auth-form" id="signup-form">
+      <label>Business name
+        <input type="text" name="businessName" placeholder="Acme Co." required />
+      </label>
+      <label>Your name (shown as CEO)
+        <input type="text" name="ceoName" placeholder="Jordan" required />
+      </label>
+      <label>Email
+        <input type="email" name="email" placeholder="you@business.com" required />
+      </label>
+      <label>Password
+        <input type="password" name="password" placeholder="At least 8 characters" minlength="8" required />
+      </label>
+      <button class="btn primary" type="submit">Create workspace</button>
+    </form>
+    <div class="auth-switch">Already have an account? <a href="/login.html">Log in</a></div>
+  </div>
+</div>
+<script>
+document.getElementById('signup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errorBox = document.getElementById('error');
+  errorBox.classList.remove('show');
+  const data = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || 'Signup failed');
+    }
+    window.location.href = '/';
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.classList.add('show');
+  }
+});
+</script>
+</body>
+</html>
