@@ -169,15 +169,24 @@ function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 let nav = { screen: "loading", params: {} };
 let navStack = [];
 function goTo(screen, params = {}, opts = {}) {
+  stopVoiceActivity();
   if (!opts.replace) navStack.push(nav);
   nav = { screen, params };
   render();
   window.scrollTo(0, 0);
 }
 function goBack(fallback = "home") {
+  stopVoiceActivity();
   if (navStack.length) { nav = navStack.pop(); render(); }
   else goTo(fallback, {}, { replace: true });
   window.scrollTo(0, 0);
+}
+// Stops any in-flight mic listening or read-aloud speech before leaving a
+// screen, so a stale recognizer can't write into the next screen's textarea
+// and narration doesn't keep playing over a screen that never asked for it.
+function stopVoiceActivity() {
+  stopListening();
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
 }
 function resetToHome() { navStack = []; goTo("home", {}, { replace: true }); }
 
@@ -199,15 +208,21 @@ function showToast(msg) {
 const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognizer = null;
 let listeningTarget = null;
+// Bumped on every stop/restart so a result or onend callback from a session
+// that's no longer current becomes a no-op — closes the race where a stale
+// mic session delivers text into a *different* screen's textarea after
+// navigating away (every practice question reuses the same field id).
+let micGeneration = 0;
 function micSupported() { return !!SpeechRecognitionCtor; }
 function toggleMic(targetId) {
   if (!micSupported()) { showToast("Voice typing isn't available in this browser."); return; }
   const btn = document.querySelector(`[data-mic-for="${targetId}"]`);
   if (recognizer && listeningTarget === targetId) {
-    recognizer.stop();
+    stopListening();
     return;
   }
-  if (recognizer) recognizer.stop();
+  stopListening();
+  const myGeneration = ++micGeneration;
   recognizer = new SpeechRecognitionCtor();
   recognizer.lang = "en-US";
   recognizer.interimResults = false;
@@ -215,6 +230,7 @@ function toggleMic(targetId) {
   listeningTarget = targetId;
   if (btn) btn.classList.add("listening");
   recognizer.onresult = (e) => {
+    if (myGeneration !== micGeneration) return;
     const text = e.results[0][0].transcript;
     const field = document.getElementById(targetId);
     if (field) {
@@ -222,26 +238,31 @@ function toggleMic(targetId) {
       field.dispatchEvent(new Event("input"));
     }
   };
-  recognizer.onerror = () => showToast("Sorry, we couldn't hear that. Please try again or type instead.");
-  recognizer.onend = () => { if (btn) btn.classList.remove("listening"); listeningTarget = null; };
+  recognizer.onerror = () => { if (myGeneration === micGeneration) showToast("Sorry, we couldn't hear that. Please try again or type instead."); };
+  recognizer.onend = () => { if (myGeneration !== micGeneration) return; if (btn) btn.classList.remove("listening"); listeningTarget = null; };
   recognizer.start();
 }
-function speak(text) {
-  if (!window.speechSynthesis) { showToast("Reading aloud isn't available in this browser."); return; }
+function stopListening() {
+  micGeneration++;
+  if (recognizer) recognizer.stop();
+}
+function speakText(text, opts = {}) {
+  if (!window.speechSynthesis) {
+    if (!opts.silent) showToast("Reading aloud isn't available in this browser.");
+    return;
+  }
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.rate = 0.95;
   window.speechSynthesis.speak(u);
 }
+function speak(text) { speakText(text); }
 // Auto-reads a step/lesson aloud when the "Voice Instructions" setting is on.
 // Silently does nothing if unsupported or the setting is off — unlike
 // speak(), this isn't a direct user action, so it shouldn't toast.
 function maybeAutoSpeak(text) {
-  if (!state.accessibility.voiceNarration || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.95;
-  window.speechSynthesis.speak(u);
+  if (!state.accessibility.voiceNarration) return;
+  speakText(text, { silent: true });
 }
 
 /* =========================================================================
@@ -655,10 +676,10 @@ function renderAccount() {
 function render() {
   const app = document.getElementById("app");
   let html = "";
-  switch (nav.screen) {
+  if (nav.screen.startsWith("onboarding-")) {
+    html = renderOnboarding(Number(nav.screen.split("-")[1]));
+  } else switch (nav.screen) {
     case "welcome": html = renderWelcome(); break;
-    case "onboarding-1": html = renderOnboarding(1); break;
-    case "onboarding-2": html = renderOnboarding(2); break;
     case "home": html = renderHome(); break;
     case "beginner-hub": html = renderBeginnerHub(); break;
     case "advanced-hub": html = renderAdvancedHub(); break;
@@ -788,6 +809,7 @@ const actions = {
   resetDemo() {
     if (!confirm("This clears all saved demo data (your saved prompts and progress). Continue?")) return;
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("aims_state_v1");
     state = defaultState();
     navStack = [];
     goTo("welcome", {}, { replace: true });
@@ -827,15 +849,6 @@ document.addEventListener("input", (ev) => {
   if (!el) return;
   actions.input(el.dataset, ev, el);
 });
-document.addEventListener("change", (ev) => {
-  const el = ev.target.closest("[data-action]");
-  if (!el) return;
-  const actionName = el.getAttribute("data-action");
-  if (actionName === "toggleContrast" || actionName === "toggleVoice") {
-    actions[actionName](el.dataset, ev);
-  }
-});
-
 /* =========================================================================
    INIT
    ========================================================================= */
