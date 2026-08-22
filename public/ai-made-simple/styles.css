@@ -311,9 +311,6 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
   font-weight: 600;
   cursor: pointer;
 }
-.chip.locked { opacity: 0.55; }
-.chip .lock-tag { font-size: 0.75rem; margin-left: 4px; }
-
 /* ---------- Simplify toggle ---------- */
 .simplify-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 10px; }
 .simplify-btn {
@@ -336,16 +333,6 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
   margin-top: 18px;
 }
 .practice-box .eyebrow { color: #1c6b45; }
-
-/* ---------- Plans ---------- */
-.plan-card { border-radius: var(--radius-lg); padding: 24px; margin-bottom: 16px; border: 2px solid var(--border); background: var(--white); }
-.plan-card.current { border-color: var(--green); }
-.plan-price { font-size: 1.9rem; font-weight: 800; color: var(--blue-dark); margin: 6px 0 14px; }
-.plan-price span { font-size: 1rem; font-weight: 500; color: var(--text-muted); }
-.feature-list { list-style: none; padding: 0; margin: 0 0 18px; }
-.feature-list li { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; font-size: 1rem; }
-.feature-list li .tick { color: var(--green); flex-shrink: 0; }
-.current-tag { display: inline-block; background: var(--green-light); color: #1c6b45; font-weight: 700; font-size: 0.8rem; padding: 4px 10px; border-radius: 999px; margin-bottom: 10px; }
 
 /* ---------- Settings ---------- */
 .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--border); gap: 12px; }
@@ -385,7 +372,6 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ---------- Misc ---------- */
-.badge-lock { display: inline-flex; align-items: center; gap: 6px; background: var(--blue-light); color: var(--blue-dark); font-size: 0.82rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
 .divider { height: 1px; background: var(--border); margin: 18px 0; }
 .help-item { padding: 16px 0; border-bottom: 1px solid var(--border); }
 .help-item:last-child { border-bottom: none; }
