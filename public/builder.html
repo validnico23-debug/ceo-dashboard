@@ -39,25 +39,20 @@
       <div class="sidebar-new">
         <div class="new-kind-toggle">
           <button class="nk-btn active" data-kind="app" id="new-kind-app">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
             App
           </button>
           <button class="nk-btn" data-kind="website" id="new-kind-website">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             Website
           </button>
         </div>
-        <form class="inline-form" id="new-app-form">
+        <form id="new-app-form">
           <input type="hidden" name="kind" value="app" id="new-kind-hidden" />
-          <input type="text" name="name" id="new-name-input" placeholder="Name your app…" required />
-          <button class="btn primary" type="submit" id="new-create-btn">Create</button>
+          <textarea name="prompt" id="new-prompt-input" class="sidebar-prompt" placeholder="Describe what you want to build…" required rows="3"></textarea>
+          <button class="btn primary sidebar-build-btn" type="submit" id="new-create-btn">Build it</button>
         </form>
-      </div>
-
-      <div class="sidebar-divider"></div>
-      <div class="sidebar-quick-actions">
-        <button class="btn small" id="open-template-modal" type="button">Start from template</button>
-        <button class="btn small" id="open-ai-modal" type="button">Generate with AI</button>
+        <button class="btn small sidebar-template-btn" id="open-template-modal" type="button">Start from template</button>
       </div>
     </aside>
 
@@ -66,11 +61,10 @@
       <div class="empty-hero-icon">
         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
       </div>
-      <div class="empty-hero-title">Build an app or website</div>
-      <div class="empty-hero-sub">Create a new project on the left, start from a template, or let AI generate a first draft.</div>
+      <div class="empty-hero-title">Tell me what to build</div>
+      <div class="empty-hero-sub">Type your idea in the sidebar — I'll generate the app or website for you. Or start from a template.</div>
       <div class="empty-hero-actions">
         <button class="btn primary" id="es-template-btn">Start from template</button>
-        <button class="btn" id="es-ai-btn">Generate with AI</button>
       </div>
     </div>
 
@@ -81,127 +75,62 @@
           <span id="editor-kind-badge" class="kind-badge">app</span>
           <span id="editor-app-name"></span>
         </div>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="status-badge" id="status-badge">draft</span>
           <button class="btn small" id="duplicate-app-btn" type="button">Duplicate</button>
           <button class="btn small" id="delete-app-btn" type="button">Delete</button>
         </div>
       </div>
 
-      <div class="sections">
-        <!-- Left column: details + screens/pages -->
-        <div>
-          <div class="card">
-            <div class="section-title">Details</div>
-            <form id="app-details-form" class="stack-form">
-              <label>Name (max 30 chars)
-                <input type="text" name="name" maxlength="30" required />
-              </label>
-              <label id="subtitle-label">Tagline (max 30 chars)
-                <input type="text" name="subtitle" maxlength="30" placeholder="A short, punchy tagline" />
-              </label>
-              <div class="stack-row">
-                <label id="icon-label">Icon (emoji)
-                  <input type="text" name="icon" maxlength="4" style="width:70px;text-align:center;font-size:18px" />
-                </label>
-                <label>Accent color
-                  <input type="color" name="color" />
-                </label>
-                <label>Category
-                  <select name="category" id="category-select"></select>
-                </label>
-                <label id="platform-label">Platform
-                  <select name="platform">
-                    <option value="both">iOS &amp; Android</option>
-                    <option value="ios">iOS only</option>
-                    <option value="android">Android only</option>
-                  </select>
-                </label>
-              </div>
-              <div class="emoji-suggestions" id="emoji-suggestions"></div>
-              <label>Description (min 40 chars)
-                <textarea name="description" rows="3" placeholder="What does it do? Who is it for?"></textarea>
-              </label>
-              <div id="app-only-fields">
-                <div class="stack-row">
-                  <label>Support email
-                    <input type="email" name="supportEmail" placeholder="support@yourapp.com" />
-                  </label>
-                  <label>Privacy policy URL
-                    <input type="url" name="privacyPolicyUrl" placeholder="https://…" />
-                  </label>
-                </div>
-              </div>
-              <div class="save-hint" id="save-hint">Saved</div>
-            </form>
-          </div>
+      <div class="chat-editor-layout">
 
-          <div class="card">
-            <div class="section-title">
-              <span id="screens-label">Screens</span>
-              <button class="btn small primary" id="add-screen-btn" type="button">+ Add</button>
-            </div>
-            <div id="add-screen-row" style="display:none;margin-bottom:12px">
-              <form class="inline-form" id="new-screen-form">
-                <input type="text" name="name" id="new-screen-name" placeholder="Page name…" required />
-                <button class="btn primary small" type="submit">Add</button>
-                <button class="btn small" type="button" id="cancel-add-screen">Cancel</button>
-              </form>
-            </div>
-            <div id="screens-editor" class="screens-editor"></div>
+        <!-- Chat pane -->
+        <div class="chat-pane">
+          <div class="chat-thread" id="chat-thread"></div>
+          <div class="chat-composer">
+            <textarea id="chat-input" placeholder="Tell me what to change — add a screen, change the color, rework the content…" rows="2"></textarea>
+            <button class="btn primary chat-send-btn" id="chat-send-btn" type="button">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
           </div>
         </div>
 
-        <!-- Right column: preview + status -->
-        <div>
-          <div class="card">
-            <div class="section-title">
-              Live Preview
-              <span id="preview-page-tabs" class="preview-tabs"></span>
-            </div>
-            <!-- Phone frame (apps) -->
-            <div id="phone-preview" class="phone-frame">
-              <div class="phone-notch"></div>
-              <div class="phone-header" id="preview-header"></div>
-              <div class="phone-body" id="preview-body"></div>
-              <div class="phone-tabbar" id="preview-tabbar"></div>
-            </div>
-            <!-- Browser frame (websites) -->
-            <div id="browser-preview" class="browser-frame" style="display:none">
-              <div class="browser-chrome">
-                <div class="browser-dots">
-                  <span class="browser-dot" style="background:#ef4444"></span>
-                  <span class="browser-dot" style="background:#f59e0b"></span>
-                  <span class="browser-dot" style="background:#22c55e"></span>
-                </div>
-                <div class="browser-url" id="browser-url">yoursite.com</div>
+        <!-- Preview + status pane -->
+        <div class="preview-side">
+          <!-- Phone frame (apps) -->
+          <div id="phone-preview" class="phone-frame">
+            <div class="phone-notch"></div>
+            <div class="phone-header" id="preview-header"></div>
+            <div class="phone-body" id="preview-body"></div>
+            <div class="phone-tabbar" id="preview-tabbar"></div>
+          </div>
+          <!-- Browser frame (websites) -->
+          <div id="browser-preview" class="browser-frame" style="display:none">
+            <div class="browser-chrome">
+              <div class="browser-dots">
+                <span class="browser-dot" style="background:#ef4444"></span>
+                <span class="browser-dot" style="background:#f59e0b"></span>
+                <span class="browser-dot" style="background:#22c55e"></span>
               </div>
-              <div class="browser-body" id="browser-body"></div>
-              <div class="browser-pagenav" id="browser-pagenav"></div>
+              <div class="browser-url" id="browser-url">yoursite.com</div>
             </div>
+            <div class="browser-body" id="browser-body"></div>
+            <div class="browser-pagenav" id="browser-pagenav"></div>
           </div>
 
-          <!-- Screenshots (apps only) -->
-          <div class="card" id="screenshots-card">
-            <div class="section-title">Screenshots</div>
-            <p class="modal-sub" style="margin-top:-4px">App Store resolution screenshots — download and attach when you submit for real.</p>
-            <div class="screenshots-grid" id="screenshots-grid"></div>
-          </div>
-
-          <div class="card">
-            <div class="section-title">
-              <span id="status-title">App Store</span>
-              <span class="status-badge" id="status-badge">draft</span>
-            </div>
-            <div class="live-stats" id="live-stats" style="display:none"></div>
+          <!-- Actions -->
+          <div class="preview-actions">
             <div class="submit-issues" id="submit-issues" style="display:none"></div>
+            <div class="live-stats" id="live-stats" style="display:none"></div>
             <div class="pipeline-actions">
               <button class="btn primary" id="submit-btn" type="button">Submit for review</button>
               <button class="btn small" id="check-review-btn" type="button" style="display:none">Check status</button>
               <a class="btn small" id="export-btn" href="#">Export (HTML)</a>
             </div>
-            <div class="feed" id="app-log" style="margin-top:14px"></div>
+            <div class="feed" id="app-log"></div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -219,30 +148,6 @@
         <button class="ttab" data-ttab="website">Websites</button>
       </div>
       <div class="template-grid" id="template-grid"></div>
-    </div>
-  </div>
-
-  <!-- AI generate modal -->
-  <div class="modal-overlay" id="ai-modal" style="display:none">
-    <div class="modal-card">
-      <div class="modal-head">
-        <h3>Generate with AI</h3>
-        <button class="icon-btn" id="close-ai-modal" type="button">✕</button>
-      </div>
-      <div class="ai-kind-toggle" style="display:flex;gap:6px;margin-bottom:14px">
-        <button class="nk-btn active" data-aikind="app" id="ai-kind-app">
-          App
-        </button>
-        <button class="nk-btn" data-aikind="website" id="ai-kind-website">
-          Website
-        </button>
-      </div>
-      <p class="modal-sub" id="ai-modal-sub">Describe your idea and get a full first draft — name, pages, and content.</p>
-      <form id="ai-generate-form">
-        <textarea id="ai-prompt" rows="3" placeholder="e.g. A budgeting app that splits bills between roommates" required></textarea>
-        <button class="btn primary" type="submit" id="ai-generate-btn">Generate</button>
-      </form>
-      <div class="ai-error" id="ai-error" style="display:none"></div>
     </div>
   </div>
 </div>

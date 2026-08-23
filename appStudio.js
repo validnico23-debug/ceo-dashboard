@@ -62,6 +62,7 @@ function emptyApp(id, name, kind = 'app') {
     submittedAt: null,
     publishedAt: null,
     stats: null,
+    messages: [],
     log: [{ id: 1, text: isWebsite ? 'Website created.' : 'App created.', createdAt: now }],
     createdAt: now,
     updatedAt: now,
@@ -112,6 +113,7 @@ function materializeApp(b, spec, sourceLabel) {
     submittedAt: null,
     publishedAt: null,
     stats: null,
+    messages: [],
     log: [{ id: 1, text: sourceLabel || (isWebsite ? 'Website created.' : 'App created.'), createdAt: now }],
     createdAt: now,
     updatedAt: now,
@@ -772,6 +774,84 @@ For "list" blocks, put items separated by " | ". Keep all text realistic and spe
   }
 }
 
+// Applies an AI-returned spec patch to an existing app in-place.
+function applySpec(b, app, spec) {
+  if (!spec || typeof spec !== 'object') return;
+  const isWebsite = app.kind === 'website';
+  const validTypes = isWebsite ? WEBSITE_BLOCK_TYPES : BLOCK_TYPES;
+  const validCats = isWebsite ? WEBSITE_CATEGORIES : CATEGORIES;
+  const defIcon = isWebsite ? '🌐' : '📱';
+  const pName = isWebsite ? 'Page' : 'Screen';
+
+  if (spec.name) app.name = String(spec.name).trim().slice(0, 30) || app.name;
+  if (spec.subtitle != null) app.subtitle = String(spec.subtitle).trim().slice(0, 30);
+  if (spec.description != null) app.description = String(spec.description).trim().slice(0, 2000);
+  if (spec.category && validCats.includes(spec.category)) app.category = spec.category;
+  if (spec.icon) app.icon = String(spec.icon).trim().slice(0, 4) || app.icon;
+  if (spec.color && /^#[0-9a-f]{6}$/i.test(spec.color)) app.color = spec.color;
+  if (Array.isArray(spec.screens)) {
+    app.screens = spec.screens.slice(0, 8).map((s) => ({
+      id: b.nextIds.appScreens++,
+      name: String(s.name || pName).trim().slice(0, 40) || pName,
+      blocks: (Array.isArray(s.blocks) ? s.blocks : []).slice(0, 12).map((blk) => ({
+        id: b.nextIds.appBlocks++,
+        type: validTypes.includes(blk.type) ? blk.type : (isWebsite ? 'section' : 'text'),
+        text: String(blk.text || '').slice(0, 400),
+        linkTo: null,
+      })),
+    }));
+  }
+}
+
+// Takes a user chat message and updates an existing app via AI (or a fallback).
+// Returns { reply, spec } where spec (if present) should be applied via applySpec.
+async function chatEditApp(app, message) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const isWebsite = app.kind === 'website';
+  const validTypes = isWebsite ? WEBSITE_BLOCK_TYPES : BLOCK_TYPES;
+  const validCats = isWebsite ? WEBSITE_CATEGORIES : CATEGORIES;
+
+  if (!apiKey) {
+    return { reply: `Got it! Noted your request. Connect an ANTHROPIC_API_KEY to enable AI-powered edits.` };
+  }
+
+  const currentState = JSON.stringify({
+    name: app.name, subtitle: app.subtitle, description: app.description,
+    category: app.category, icon: app.icon, color: app.color,
+    screens: (app.screens || []).map((s) => ({
+      name: s.name,
+      blocks: s.blocks.map((bl) => ({ type: bl.type, text: bl.text })),
+    })),
+  });
+
+  const prompt = `You are editing an existing ${app.kind}. Current state:\n${currentState}\n\nUser says: "${message.slice(0, 600)}"\n\nRespond ONLY with valid JSON (no markdown fences):\n{\n  "reply": "1-2 sentence casual confirmation of what you changed",\n  "spec": { complete updated ${app.kind} state — same shape as the current state, keeping everything that wasn't changed. Valid block types: ${JSON.stringify(validTypes)}. Valid categories: ${JSON.stringify(validCats)}. }\n}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!res.ok) throw new Error('AI request failed');
+    const json = await res.json();
+    const text = json.content?.[0]?.text;
+    if (!text) throw new Error('No content');
+    const parsed = extractJson(text);
+    if (!parsed || typeof parsed !== 'object') throw new Error('Bad JSON');
+    return { reply: String(parsed.reply || 'Done!'), spec: parsed.spec || null };
+  } catch {
+    return { reply: `Got it! I've noted "${message.slice(0, 60)}…" — try again if the update didn't go through.` };
+  }
+}
+
 function escapeHtml(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -904,4 +984,6 @@ module.exports = {
   WEBSITE_TEMPLATES,
   generateAppSpec,
   exportAppHtml,
+  applySpec,
+  chatEditApp,
 };
