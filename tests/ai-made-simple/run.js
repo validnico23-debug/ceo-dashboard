@@ -74,7 +74,7 @@ function assertEqual(actual, expected, msg) {
 }
 
 (async () => {
-  const server = process.env.TEST_BASE_URL ? null : await startServer();
+  let server = process.env.TEST_BASE_URL ? null : await startServer();
   const isChromium = !process.env.PLAYWRIGHT_BROWSER || process.env.PLAYWRIGHT_BROWSER === "chromium";
   const browser = await browserType.launch({
     executablePath: (isChromium && process.env.PLAYWRIGHT_CHROMIUM_PATH) || undefined,
@@ -285,15 +285,32 @@ function assertEqual(actual, expected, msg) {
     }
   });
 
-  await test("PWA: app still renders with the network fully offline", async () => {
-    await page.context().setOffline(true);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(400);
-    const title = await page.title();
-    const appLength = await page.evaluate(() => document.getElementById("app")?.innerHTML.length || 0);
-    await page.context().setOffline(false);
+  await test("PWA: app still renders with the network genuinely unreachable", async () => {
+    // Deliberately not using context.setOffline(true) here: it's a browser-
+    // level flag each engine's automation driver implements differently
+    // (WebKit's driver throws "encountered an internal error" on reload
+    // under it, independent of whether the app/service-worker logic is
+    // correct). Instead, actually stop the server — a real closed TCP
+    // listener is unambiguous and identical across every engine, which is
+    // the more faithful test of "does this genuinely work with no network,"
+    // the actual claim being tested.
+    if (!server) {
+      console.log("        (skipped: only supported against the built-in server, not TEST_BASE_URL)");
+      return;
+    }
+    await new Promise((resolve) => server.close(resolve));
+    let reloadError = null;
+    try {
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 5000 });
+    } catch (e) {
+      reloadError = e;
+    }
+    const title = reloadError ? null : await page.title();
+    const appLength = reloadError ? 0 : await page.evaluate(() => document.getElementById("app")?.innerHTML.length || 0);
+    await new Promise((resolve) => startServer().then((s) => { server = s; resolve(); }));
+    if (reloadError) throw new Error(`page.reload() failed with the server stopped: ${reloadError.message}`);
     assertEqual(title, "AI Made Simple");
-    assert(appLength > 100, "app root should have rendered real content while offline");
+    assert(appLength > 100, "app root should have rendered real content with the server unreachable");
   });
 
   await page.close();
