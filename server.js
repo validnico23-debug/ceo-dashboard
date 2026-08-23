@@ -198,7 +198,7 @@ async function reviewTick() {
     reviewTickRunning = false;
   }
 }
-setInterval(reviewTick, 30_000);
+setInterval(reviewTick, 5_000);
 reviewTick();
 
 // ---- Briefing ----
@@ -430,6 +430,7 @@ function appListView(a) {
   return {
     id: a.id,
     name: a.name,
+    kind: a.kind || 'app',
     subtitle: a.subtitle,
     icon: a.icon,
     color: a.color,
