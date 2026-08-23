@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Studio — CEO Dashboard</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="studio-mode">
+<div class="app">
+  <nav class="appbar">
+    <div class="brand">
+      <span class="mark"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></span>
+      Studio
+    </div>
+    <div class="user">
+      <a class="btn small" href="/">← Dashboard</a>
+      <span id="user-email"></span>
+      <button class="btn small" id="logout-btn">Log out</button>
+    </div>
+  </nav>
+
+  <div class="builder-layout">
+
+    <!-- Sidebar -->
+    <aside class="apps-sidebar">
+      <div class="sidebar-tabs">
+        <button class="stab active" data-tab="all">All</button>
+        <button class="stab" data-tab="app">Apps</button>
+        <button class="stab" data-tab="website">Websites</button>
+      </div>
+
+      <div id="apps-list" class="apps-list"></div>
+
+      <div class="sidebar-new">
+        <div class="new-kind-toggle">
+          <button class="nk-btn active" data-kind="app" id="new-kind-app">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+            App
+          </button>
+          <button class="nk-btn" data-kind="website" id="new-kind-website">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            Website
+          </button>
+        </div>
+        <form id="new-app-form">
+          <input type="hidden" name="kind" value="app" id="new-kind-hidden" />
+          <textarea name="prompt" id="new-prompt-input" class="sidebar-prompt" placeholder="Describe what you want to build…" required rows="3"></textarea>
+          <button class="btn primary sidebar-build-btn" type="submit" id="new-create-btn">Build it</button>
+        </form>
+        <button class="btn small sidebar-template-btn" id="open-template-modal" type="button">Start from template</button>
+      </div>
+    </aside>
+
+    <!-- Empty state -->
+    <div id="no-app-selected" class="empty-hero">
+      <div class="empty-hero-icon">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+      </div>
+      <div class="empty-hero-title">Tell me what to build</div>
+      <div class="empty-hero-sub">Type your idea in the sidebar — I'll generate the app or website for you. Or start from a template.</div>
+      <div class="empty-hero-actions">
+        <button class="btn primary" id="es-template-btn">Start from template</button>
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <div id="app-editor" class="editor-wrap" style="display:none">
+      <div class="editor-header">
+        <div class="editor-title">
+          <span id="editor-kind-badge" class="kind-badge">app</span>
+          <span id="editor-app-name"></span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="status-badge" id="status-badge">draft</span>
+          <button class="btn small" id="duplicate-app-btn" type="button">Duplicate</button>
+          <button class="btn small" id="delete-app-btn" type="button">Delete</button>
+        </div>
+      </div>
+
+      <div class="chat-editor-layout">
+
+        <!-- Chat pane -->
+        <div class="chat-pane">
+          <div class="chat-thread" id="chat-thread"></div>
+          <div class="chat-composer">
+            <textarea id="chat-input" placeholder="Tell me what to change — add a screen, change the color, rework the content…" rows="2"></textarea>
+            <button class="btn primary chat-send-btn" id="chat-send-btn" type="button">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Preview + status pane -->
+        <div class="preview-side">
+          <!-- Phone frame (apps) -->
+          <div id="phone-preview" class="phone-frame">
+            <div class="phone-notch"></div>
+            <iframe id="app-iframe" class="phone-iframe" sandbox="allow-scripts allow-forms allow-popups allow-modals" title="App preview"></iframe>
+            <div class="phone-home-bar"></div>
+          </div>
+          <!-- Browser frame (websites) -->
+          <div id="browser-preview" class="browser-frame" style="display:none">
+            <div class="browser-chrome">
+              <div class="browser-dots">
+                <span class="browser-dot" style="background:#ef4444"></span>
+                <span class="browser-dot" style="background:#f59e0b"></span>
+                <span class="browser-dot" style="background:#22c55e"></span>
+              </div>
+              <div class="browser-url" id="browser-url">yoursite.com</div>
+            </div>
+            <iframe id="web-iframe" class="browser-iframe" sandbox="allow-scripts allow-forms allow-popups allow-modals" title="Website preview"></iframe>
+          </div>
+
+          <!-- Actions -->
+          <div class="preview-actions">
+            <div class="deploy-live" id="deploy-live" style="display:none">
+              <span class="deploy-dot"></span>
+              <a id="deploy-live-link" href="#" target="_blank" rel="noopener"></a>
+            </div>
+            <div class="submit-issues" id="submit-issues" style="display:none"></div>
+            <div class="live-stats" id="live-stats" style="display:none"></div>
+            <div class="pipeline-actions">
+              <button class="btn primary" id="deploy-btn" type="button">Deploy live</button>
+              <button class="btn small" id="submit-btn" type="button">Submit for review</button>
+              <button class="btn small" id="check-review-btn" type="button" style="display:none">Check status</button>
+              <a class="btn small" id="export-btn" href="#">Export (HTML)</a>
+            </div>
+            <div class="feed" id="app-log"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Template modal -->
+  <div class="modal-overlay" id="template-modal" style="display:none">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Start from a template</h3>
+        <button class="icon-btn" id="close-template-modal" type="button">✕</button>
+      </div>
+      <p class="modal-sub">Pick a starting point — change everything afterward.</p>
+      <div class="template-tabs">
+        <button class="ttab active" data-ttab="app">Apps</button>
+        <button class="ttab" data-ttab="website">Websites</button>
+      </div>
+      <div class="template-grid" id="template-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script src="builder.js"></script>
+</body>
+</html>

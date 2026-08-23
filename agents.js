@@ -1,9 +1,9 @@
 const AGENTS = [
-  { id: 'sales', name: 'Ava', role: 'Sales Agent', icon: '🟣', department: 'Sales' },
-  { id: 'support', name: 'Sage', role: 'Support Agent', icon: '🟢', department: 'Ops' },
-  { id: 'ops', name: 'Otto', role: 'Ops Agent', icon: '🟠', department: 'Ops' },
-  { id: 'finance', name: 'Fin', role: 'Finance Agent', icon: '🔵', department: 'Finance' },
-  { id: 'marketing', name: 'Milo', role: 'Marketing Agent', icon: '🟡', department: 'Marketing' },
+  { id: 'sales', name: 'Ava', role: 'Sales Agent', icon: 'A', department: 'Sales' },
+  { id: 'support', name: 'Sage', role: 'Support Agent', icon: 'S', department: 'Ops' },
+  { id: 'ops', name: 'Otto', role: 'Ops Agent', icon: 'O', department: 'Ops' },
+  { id: 'finance', name: 'Fin', role: 'Finance Agent', icon: 'F', department: 'Finance' },
+  { id: 'marketing', name: 'Milo', role: 'Marketing Agent', icon: 'M', department: 'Marketing' },
 ];
 
 const AGENT_BY_ID = Object.fromEntries(AGENTS.map((a) => [a.id, a]));
