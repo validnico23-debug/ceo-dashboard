@@ -648,11 +648,11 @@ function renderAccount() {
       </div>
       <div class="setting-row">
         <div><div class="setting-title">High Contrast</div><div class="setting-sub">Bolder colors, easier to see</div></div>
-        <label class="switch"><input type="checkbox" data-action="toggleContrast" ${a.highContrast ? "checked" : ""}><span class="track"><span class="thumb"></span></span></label>
+        <label class="switch"><input type="checkbox" data-action="toggleContrast" aria-label="High Contrast" ${a.highContrast ? "checked" : ""}><span class="track"><span class="thumb"></span></span></label>
       </div>
       <div class="setting-row">
         <div><div class="setting-title">Voice Instructions</div><div class="setting-sub">Have steps and lessons read aloud to you</div></div>
-        <label class="switch"><input type="checkbox" data-action="toggleVoice" ${a.voiceNarration ? "checked" : ""}><span class="track"><span class="thumb"></span></span></label>
+        <label class="switch"><input type="checkbox" data-action="toggleVoice" aria-label="Voice Instructions" ${a.voiceNarration ? "checked" : ""}><span class="track"><span class="thumb"></span></span></label>
       </div>
     </div>
 

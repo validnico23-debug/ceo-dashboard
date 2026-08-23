@@ -216,6 +216,17 @@ function assertEqual(actual, expected, msg) {
     assert(!voiceRow.includes("Premium"), "Voice Instructions should not show a Premium badge");
   });
 
+  await test("accessibility toggles have real accessible names, not just a visual label", async () => {
+    // These are icon-only switches (no visible text inside the control
+    // itself) — without an aria-label a screen reader announces them as
+    // unlabeled checkboxes, which defeats the point of an accessibility
+    // settings screen.
+    const contrastLabel = await page.getAttribute('input[data-action="toggleContrast"]', "aria-label");
+    const voiceLabel = await page.getAttribute('input[data-action="toggleVoice"]', "aria-label");
+    assert(contrastLabel && contrastLabel.trim().length > 0, "High Contrast checkbox has no accessible name");
+    assert(voiceLabel && voiceLabel.trim().length > 0, "Voice Instructions checkbox has no accessible name");
+  });
+
   await test("Reset Demo Data clears both current and legacy storage keys", async () => {
     await page.evaluate(() => localStorage.setItem("aims_state_v1", JSON.stringify({ onboarded: true })));
     page.once("dialog", (d) => d.accept());
