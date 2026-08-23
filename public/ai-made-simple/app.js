@@ -856,6 +856,13 @@ function init() {
   applyAccessibility();
   if (state.onboarded) goTo("home", {}, { replace: true });
   else goTo("welcome", {}, { replace: true });
+  registerServiceWorker();
+}
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  // Relative path so this still resolves correctly if the app is ever
+  // served from a sub-path other than /ai-made-simple/.
+  navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 document.addEventListener("DOMContentLoaded", init);
 })();
