@@ -47,6 +47,7 @@ const EMOJI_SUGGESTIONS = ['📱', '🚀', '💡', '🎯', '🛒', '📸', '🎵
 const STATUS_LABELS = { draft: 'draft', in_review: 'in review', changes_requested: 'changes requested', published: 'published' };
 
 let categories = [];
+let templates = [];
 let apps = [];
 let currentApp = null;
 let previewIndex = 0;
@@ -61,6 +62,7 @@ async function init() {
 
   const meta = await api('/api/app-studio/meta');
   categories = meta.categories;
+  templates = meta.templates;
   const catSelect = document.getElementById('category-select');
   catSelect.innerHTML =
     '<option value="">Choose a category…</option>' + categories.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
@@ -74,8 +76,28 @@ async function init() {
     saveDetails();
   });
 
+  document.getElementById('template-grid').innerHTML = templates
+    .map(
+      (t) =>
+        `<button type="button" class="template-card" data-template="${t.id}"><span class="icon">${t.icon}</span><div class="name">${escapeHtml(t.name)}</div><div class="desc">${escapeHtml(t.description)}</div></button>`
+    )
+    .join('');
+
+  if (!meta.aiGeneration) {
+    document.getElementById('ai-modal-sub').textContent =
+      'Describe your app idea in a sentence and get a full first draft — name, screens, and content. (Using rule-based drafting; set ANTHROPIC_API_KEY for AI-written content.)';
+  }
+
   await loadApps();
   wireStaticEvents();
+}
+
+function openModal(id) {
+  document.getElementById(id).style.display = 'flex';
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
 }
 
 async function loadApps(selectId) {
@@ -98,7 +120,8 @@ function renderAppList() {
   apps.forEach((a) => {
     const div = document.createElement('div');
     div.className = 'app-list-item' + (currentApp && currentApp.id === a.id ? ' active' : '');
-    div.innerHTML = `<span class="icon">${escapeHtml(a.icon)}</span><div class="info"><div class="name">${escapeHtml(a.name)}</div><div class="sub">${a.screenCount} screen${a.screenCount === 1 ? '' : 's'} · ${STATUS_LABELS[a.status]}</div></div>`;
+    const sub = a.downloads != null ? `${a.downloads.toLocaleString('en-US')} downloads` : `${a.screenCount} screen${a.screenCount === 1 ? '' : 's'} · ${STATUS_LABELS[a.status]}`;
+    div.innerHTML = `<span class="icon">${escapeHtml(a.icon)}</span><div class="info"><div class="name">${escapeHtml(a.name)}</div><div class="sub">${sub}</div></div>`;
     div.addEventListener('click', () => selectApp(a.id));
     wrap.appendChild(div);
   });
@@ -155,7 +178,26 @@ async function refreshListEntry() {
 
 // ---- Screens & blocks ----
 
-const BLOCK_TYPE_LABELS = { heading: 'Heading', text: 'Text', button: 'Button', image: 'Image', input: 'Input' };
+const BLOCK_TYPE_LABELS = {
+  heading: 'Heading',
+  text: 'Text',
+  button: 'Button',
+  image: 'Image',
+  input: 'Input',
+  divider: 'Divider',
+  list: 'List',
+  card: 'Card',
+};
+
+function screenOptions(currentApp, selectedId, excludeId) {
+  return (
+    '<option value="">No link</option>' +
+    currentApp.screens
+      .filter((s) => s.id !== excludeId)
+      .map((s) => `<option value="${s.id}" ${Number(selectedId) === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`)
+      .join('')
+  );
+}
 
 function renderScreens() {
   const wrap = document.getElementById('screens-editor');
@@ -176,10 +218,11 @@ function renderScreens() {
       </div>
       <div class="content-blocks" data-blocks-for="${screen.id}"></div>
       <form class="add-block-form" data-add-block-for="${screen.id}">
-        <select name="type">
+        <select name="type" class="block-type-select">
           ${Object.entries(BLOCK_TYPE_LABELS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
         </select>
-        <input type="text" name="text" placeholder="Content…" required />
+        <input type="text" name="text" placeholder="Content… (list items: separate with |)" required />
+        <select name="linkTo" class="link-to-select" style="display:none">${screenOptions(currentApp, null, screen.id)}</select>
         <button class="btn small primary" type="submit">Add</button>
       </form>
     `;
@@ -193,6 +236,11 @@ function renderScreens() {
         row.innerHTML = `
           <span class="type-tag">${BLOCK_TYPE_LABELS[block.type] || block.type}</span>
           <input type="text" value="${escapeHtml(block.text)}" data-block="${block.id}" data-screen="${screen.id}" class="block-text-input" />
+          ${
+            block.type === 'button'
+              ? `<select class="link-to-select block-link-select" data-block="${block.id}" data-screen="${screen.id}">${screenOptions(currentApp, block.linkTo, screen.id)}</select>`
+              : ''
+          }
           <button class="icon-btn" data-action="block-up" data-screen="${screen.id}" data-block="${block.id}" ${bIdx === 0 ? 'disabled' : ''}>↑</button>
           <button class="icon-btn" data-action="block-down" data-screen="${screen.id}" data-block="${block.id}" ${bIdx === screen.blocks.length - 1 ? 'disabled' : ''}>↓</button>
           <button class="icon-btn" data-action="block-delete" data-screen="${screen.id}" data-block="${block.id}">✕</button>
@@ -231,6 +279,54 @@ function wireStaticEvents() {
     await loadApps();
   });
 
+  document.getElementById('duplicate-app-btn').addEventListener('click', async () => {
+    if (!currentApp) return;
+    const copy = await api(`/api/apps/${currentApp.id}/duplicate`, { method: 'POST' });
+    await loadApps(copy.id);
+  });
+
+  document.getElementById('open-template-modal').addEventListener('click', () => openModal('template-modal'));
+  document.getElementById('close-template-modal').addEventListener('click', () => closeModal('template-modal'));
+  document.getElementById('template-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'template-modal') closeModal('template-modal');
+  });
+  document.getElementById('template-grid').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-template]');
+    if (!btn) return;
+    btn.disabled = true;
+    const created = await api('/api/apps/from-template', { method: 'POST', body: JSON.stringify({ templateId: btn.dataset.template }) });
+    closeModal('template-modal');
+    await loadApps(created.id);
+  });
+
+  document.getElementById('open-ai-modal').addEventListener('click', () => openModal('ai-modal'));
+  document.getElementById('close-ai-modal').addEventListener('click', () => closeModal('ai-modal'));
+  document.getElementById('ai-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'ai-modal') closeModal('ai-modal');
+  });
+  document.getElementById('ai-generate-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const prompt = document.getElementById('ai-prompt').value.trim();
+    if (!prompt) return;
+    const btn = document.getElementById('ai-generate-btn');
+    const errBox = document.getElementById('ai-error');
+    errBox.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+    try {
+      const created = await api('/api/apps/generate', { method: 'POST', body: JSON.stringify({ prompt }) });
+      document.getElementById('ai-prompt').value = '';
+      closeModal('ai-modal');
+      await loadApps(created.id);
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Generate app';
+    }
+  });
+
   document.getElementById('new-screen-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target;
@@ -247,6 +343,7 @@ function wireStaticEvents() {
   document.getElementById('screens-editor').addEventListener('click', handleScreensClick);
   document.getElementById('screens-editor').addEventListener('submit', handleAddBlockSubmit);
   document.getElementById('screens-editor').addEventListener('blur', handleScreensBlur, true);
+  document.getElementById('screens-editor').addEventListener('change', handleScreensChange);
 
   document.getElementById('submit-btn').addEventListener('click', handleSubmitForReview);
   document.getElementById('check-review-btn').addEventListener('click', handleCheckReview);
@@ -300,6 +397,23 @@ async function handleAddBlockSubmit(e) {
   await refreshListEntry();
 }
 
+async function handleScreensChange(e) {
+  if (e.target.classList?.contains('block-type-select')) {
+    const form = e.target.closest('form');
+    form.querySelector('.link-to-select').style.display = e.target.value === 'button' ? '' : 'none';
+    return;
+  }
+  if (e.target.classList?.contains('block-link-select')) {
+    const { screen, block } = e.target.dataset;
+    await api(`/api/apps/${currentApp.id}/screens/${screen}/blocks/${block}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ linkTo: e.target.value || null }),
+    });
+    currentApp = await api(`/api/apps/${currentApp.id}`);
+    renderPreview();
+  }
+}
+
 async function handleScreensBlur(e) {
   if (e.target.classList?.contains('screen-name-input')) {
     const screenId = e.target.dataset.screen;
@@ -350,23 +464,47 @@ function renderPreview() {
     return;
   }
   body.innerHTML = screen.blocks
-    .map((block) => {
+    .map((block, i) => {
       switch (block.type) {
         case 'heading':
           return `<h2>${escapeHtml(block.text)}</h2>`;
         case 'text':
           return `<p>${escapeHtml(block.text)}</p>`;
         case 'button':
-          return `<button class="prev-btn" style="background:${currentApp.color}">${escapeHtml(block.text)}</button>`;
+          return `<button class="prev-btn" data-block-i="${i}" style="background:${currentApp.color}">${escapeHtml(block.text)}</button>`;
         case 'image':
           return `<div class="prev-image">${escapeHtml(block.text || 'Image')}</div>`;
         case 'input':
           return `<input class="prev-input" placeholder="${escapeHtml(block.text)}" disabled />`;
+        case 'divider':
+          return '<hr class="prev-divider" />';
+        case 'list':
+          return `<ul class="prev-list">${block.text
+            .split('|')
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .map((item) => `<li>${escapeHtml(item)}</li>`)
+            .join('')}</ul>`;
+        case 'card':
+          return `<div class="prev-card">${escapeHtml(block.text)}</div>`;
         default:
           return '';
       }
     })
     .join('');
+
+  body.querySelectorAll('.prev-btn[data-block-i]').forEach((btn) => {
+    const block = screen.blocks[Number(btn.dataset.blockI)];
+    if (!block.linkTo) return;
+    const targetIdx = currentApp.screens.findIndex((s) => s.id === block.linkTo);
+    if (targetIdx === -1) return;
+    btn.style.cursor = 'pointer';
+    btn.title = `Links to "${currentApp.screens[targetIdx].name}"`;
+    btn.addEventListener('click', () => {
+      previewIndex = targetIdx;
+      renderPreview();
+    });
+  });
 }
 
 // ---- Status & submission ----
@@ -385,6 +523,17 @@ function renderStatus() {
   document.getElementById('export-btn').href = `/api/apps/${currentApp.id}/export`;
 
   document.getElementById('submit-issues').style.display = 'none';
+
+  const stats = document.getElementById('live-stats');
+  if (currentApp.status === 'published' && currentApp.stats) {
+    stats.style.display = 'flex';
+    stats.innerHTML = `
+      <div class="stat"><div class="value">${currentApp.stats.downloads.toLocaleString('en-US')}</div><div class="label">Downloads</div></div>
+      <div class="stat"><div class="value">⭐ ${currentApp.stats.rating.toFixed(1)}</div><div class="label">${currentApp.stats.ratingCount.toLocaleString('en-US')} ratings</div></div>
+    `;
+  } else {
+    stats.style.display = 'none';
+  }
 
   const log = document.getElementById('app-log');
   log.innerHTML = '';
