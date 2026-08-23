@@ -18,7 +18,11 @@ const { chromium } = require("playwright");
 
 const APP_DIR = path.resolve(__dirname, "../../public/ai-made-simple");
 const PORT = 8973;
-const BASE_URL = `http://localhost:${PORT}/`;
+// TEST_BASE_URL lets this same suite run against a different server (e.g.
+// the real Express app in server.js, to catch server-specific serving
+// quirks) instead of the built-in static server below, which is what CI
+// uses by default since it doesn't need the rest of the app running.
+const BASE_URL = process.env.TEST_BASE_URL || `http://localhost:${PORT}/`;
 
 const MIME = {
   ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
@@ -59,7 +63,7 @@ function assertEqual(actual, expected, msg) {
 }
 
 (async () => {
-  const server = await startServer();
+  const server = process.env.TEST_BASE_URL ? null : await startServer();
   const browser = await chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
   });
@@ -248,8 +252,12 @@ function assertEqual(actual, expected, msg) {
       const cache = await caches.open(keys[0]);
       return (await cache.keys()).map((r) => new URL(r.url).pathname);
     });
+    // Match by suffix, not exact path: this suite also runs against the real
+    // Express app (via TEST_BASE_URL) where the app is deployed under
+    // /ai-made-simple/ rather than site root, and the cache correctly
+    // reflects whatever path it's actually served from.
     for (const f of ["/index.html", "/app.js", "/styles.css", "/manifest.json"]) {
-      assert(cached.includes(f), `expected ${f} to be cached, got: ${cached.join(", ")}`);
+      assert(cached.some((c) => c.endsWith(f)), `expected a cached URL ending in ${f}, got: ${cached.join(", ")}`);
     }
   });
 
@@ -266,7 +274,7 @@ function assertEqual(actual, expected, msg) {
 
   await page.close();
   await browser.close();
-  await new Promise((resolve) => server.close(resolve));
+  if (server) await new Promise((resolve) => server.close(resolve));
 
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} tests passed.`);
