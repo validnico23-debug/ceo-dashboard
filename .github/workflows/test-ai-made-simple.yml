@@ -19,11 +19,19 @@ jobs:
     defaults:
       run:
         working-directory: tests/ai-made-simple
+    strategy:
+      fail-fast: false
+      matrix:
+        # webkit is the engine behind Safari/iOS, a large share of this
+        # app's actual audience — worth its own CI leg, not just chromium.
+        browser: [chromium, webkit]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
       - run: npm install
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
       - run: npm test
+        env:
+          PLAYWRIGHT_BROWSER: ${{ matrix.browser }}

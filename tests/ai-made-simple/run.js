@@ -3,18 +3,29 @@
 // Run with: npm test   (from this directory, after `npm install`)
 //
 // Starts a plain Node static file server over the app directory, drives it
-// with a real Chromium instance via Playwright, and asserts on both DOM
-// state and real browser behavior (Cache Storage, offline mode, storage
-// keys) rather than just "did it throw."
+// with a real browser via Playwright, and asserts on both DOM state and
+// real browser behavior (Cache Storage, offline mode, storage keys) rather
+// than just "did it throw."
 //
-// PLAYWRIGHT_CHROMIUM_PATH may be set to point at a pre-installed browser
+// PLAYWRIGHT_BROWSER selects the engine: "chromium" (default), "webkit", or
+// "firefox". WebKit matters here specifically because it's the engine
+// behind Safari/iOS, a large share of this app's actual audience, and it
+// has real, historically documented differences from Chromium in Service
+// Worker and Cache Storage behavior — exactly the newest, least-proven part
+// of this app. CI runs both chromium and webkit (see the workflow matrix);
+// this sandbox's network proxy blocks Playwright's browser-download CDN,
+// so webkit can only be verified in CI, not locally — that's a real,
+// disclosed limitation, not a skipped step pretending not to exist.
+//
+// PLAYWRIGHT_CHROMIUM_PATH may be set to point at a pre-installed chromium
 // (used in the dev sandbox this suite was authored in); CI installs its own
-// via `npx playwright install --with-deps chromium` and leaves it unset.
+// via `npx playwright install --with-deps` and leaves it unset.
 
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { chromium } = require("playwright");
+const playwright = require("playwright");
+const browserType = playwright[process.env.PLAYWRIGHT_BROWSER || "chromium"];
 
 const APP_DIR = path.resolve(__dirname, "../../public/ai-made-simple");
 const PORT = 8973;
@@ -64,9 +75,11 @@ function assertEqual(actual, expected, msg) {
 
 (async () => {
   const server = process.env.TEST_BASE_URL ? null : await startServer();
-  const browser = await chromium.launch({
-    executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+  const isChromium = !process.env.PLAYWRIGHT_BROWSER || process.env.PLAYWRIGHT_BROWSER === "chromium";
+  const browser = await browserType.launch({
+    executablePath: (isChromium && process.env.PLAYWRIGHT_CHROMIUM_PATH) || undefined,
   });
+  console.log(`Running against: ${browserType.name()}\n`);
 
   const consoleErrors = [];
   let page;
