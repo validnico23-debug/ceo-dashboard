@@ -116,7 +116,7 @@ function renderAppList() {
     const unitLabel = isWebsite ? 'visits' : 'downloads';
     const sub = a.downloads != null
       ? `${a.downloads.toLocaleString('en-US')} ${unitLabel}`
-      : `${a.screenCount} ${isWebsite ? 'page' : 'screen'}${a.screenCount === 1 ? '' : 's'} · ${STATUS_LABELS[a.status]}`;
+      : STATUS_LABELS[a.status];
     div.innerHTML = `
       <span class="kind-chip ${kind}">${kind}</span>
       <span class="icon">${isWebsite ? '🌐' : escapeHtml(a.icon || '📱')}</span>
@@ -366,127 +366,20 @@ function wireStaticEvents() {
 
 function renderPreview() {
   const isWebsite = (currentApp.kind || 'app') === 'website';
+  const html = currentApp.previewHtml || '';
+
   document.getElementById('phone-preview').style.display = isWebsite ? 'none' : '';
   document.getElementById('browser-preview').style.display = isWebsite ? '' : 'none';
+
+  const placeholder = `<div style="height:100%;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;color:#888;font-size:14px;text-align:center;padding:24px">Describe what you want to build in the chat →</div>`;
+
   if (isWebsite) {
-    renderWebsitePreview();
+    const fakeDomain = (currentApp.name || 'mysite').toLowerCase().replace(/[^a-z0-9]+/g, '') + '.com';
+    document.getElementById('browser-url').textContent = fakeDomain;
+    document.getElementById('web-iframe').srcdoc = html || placeholder;
   } else {
-    renderPhonePreview();
+    document.getElementById('app-iframe').srcdoc = html || placeholder;
   }
-}
-
-function renderPhonePreview() {
-  const header = document.getElementById('preview-header');
-  header.style.background = currentApp.color || '#2563eb';
-  header.innerHTML = `<span class="icon">${escapeHtml(currentApp.icon || '📱')}</span><div><div class="name">${escapeHtml(currentApp.name || 'My App')}</div><div class="sub">${escapeHtml(currentApp.subtitle || '')}</div></div>`;
-
-  const tabbar = document.getElementById('preview-tabbar');
-  const body = document.getElementById('preview-body');
-
-  if (currentApp.screens.length === 0) {
-    tabbar.innerHTML = '';
-    body.innerHTML = '<div class="empty-note">Add a screen to see it here.</div>';
-    return;
-  }
-  if (previewIndex >= currentApp.screens.length) previewIndex = 0;
-
-  tabbar.innerHTML = currentApp.screens
-    .map((s, i) => `<button data-i="${i}" class="${i === previewIndex ? 'active' : ''}" style="${i === previewIndex ? `color:${currentApp.color}` : ''}">${escapeHtml(s.name)}</button>`)
-    .join('');
-  tabbar.querySelectorAll('button').forEach((b) => {
-    b.addEventListener('click', () => { previewIndex = Number(b.dataset.i); renderPreview(); });
-  });
-
-  const screen = currentApp.screens[previewIndex];
-  if (screen.blocks.length === 0) {
-    body.innerHTML = '<div class="empty-note">No content yet.</div>';
-    return;
-  }
-
-  body.innerHTML = screen.blocks.map((block, i) => {
-    switch (block.type) {
-      case 'heading': return `<h2>${escapeHtml(block.text)}</h2>`;
-      case 'text': return `<p>${escapeHtml(block.text)}</p>`;
-      case 'button': return `<button class="prev-btn" data-block-i="${i}" style="background:${currentApp.color}">${escapeHtml(block.text)}</button>`;
-      case 'image': return `<div class="prev-image">${escapeHtml(block.text || 'Image')}</div>`;
-      case 'input': return `<input class="prev-input" placeholder="${escapeHtml(block.text)}" disabled />`;
-      case 'divider': return '<hr class="prev-divider" />';
-      case 'list':
-        return `<ul class="prev-list">${block.text.split('|').map((s) => s.trim()).filter(Boolean).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`;
-      case 'card': return `<div class="prev-card">${escapeHtml(block.text)}</div>`;
-      default: return '';
-    }
-  }).join('');
-
-  body.querySelectorAll('.prev-btn[data-block-i]').forEach((btn) => {
-    const block = screen.blocks[Number(btn.dataset.blockI)];
-    if (!block.linkTo) return;
-    const targetIdx = currentApp.screens.findIndex((s) => s.id === block.linkTo);
-    if (targetIdx === -1) return;
-    btn.style.cursor = 'pointer';
-    btn.title = `Links to "${currentApp.screens[targetIdx].name}"`;
-    btn.addEventListener('click', () => { previewIndex = targetIdx; renderPreview(); });
-  });
-}
-
-function renderWebsiteBlock(block, app) {
-  const accent = app.color || '#2563eb';
-  switch (block.type) {
-    case 'hero':
-      return `<div class="bv-hero" style="background:${accent}"><h1>${escapeHtml(block.text)}</h1></div>`;
-    case 'nav': {
-      const items = block.text.split('|').map((s) => s.trim()).filter(Boolean);
-      return `<nav class="bv-nav">${items.map((i) => `<a href="#">${escapeHtml(i)}</a>`).join('')}</nav>`;
-    }
-    case 'section':
-      return `<div class="bv-section"><p>${escapeHtml(block.text)}</p></div>`;
-    case 'columns': {
-      const cols = block.text.split('|').map((s) => s.trim()).filter(Boolean);
-      return `<div class="bv-columns">${cols.map((c) => `<div class="bv-col"><p>${escapeHtml(c)}</p></div>`).join('')}</div>`;
-    }
-    case 'cta':
-      return `<div class="bv-cta"><button style="background:${accent}">${escapeHtml(block.text)}</button></div>`;
-    case 'image':
-      return `<div class="bv-image"><span>${escapeHtml(block.text || 'Image')}</span></div>`;
-    case 'text':
-      return `<p class="bv-text">${escapeHtml(block.text)}</p>`;
-    case 'divider':
-      return '<hr class="bv-divider" />';
-    case 'footer': {
-      const items = block.text.split('|').map((s) => s.trim()).filter(Boolean);
-      return `<footer class="bv-footer">${(items.length > 1 ? items : [block.text]).map((i) => `<span>${escapeHtml(i)}</span>`).join('')}</footer>`;
-    }
-    default: return '';
-  }
-}
-
-function renderWebsitePreview() {
-  const fakeDomain = (currentApp.name || 'mysite').toLowerCase().replace(/[^a-z0-9]+/g, '').replace(/^$/, 'mysite') + '.com';
-  document.getElementById('browser-url').textContent = fakeDomain;
-
-  const pagenav = document.getElementById('browser-pagenav');
-  const body = document.getElementById('browser-body');
-
-  if (currentApp.screens.length === 0) {
-    pagenav.innerHTML = '';
-    body.innerHTML = '<div class="empty-note" style="padding:20px">Add a page to see it here.</div>';
-    return;
-  }
-  if (previewIndex >= currentApp.screens.length) previewIndex = 0;
-
-  pagenav.innerHTML = currentApp.screens
-    .map((s, i) => `<button data-i="${i}" class="${i === previewIndex ? 'active' : ''}" style="${i === previewIndex ? `color:${currentApp.color}` : ''}">${escapeHtml(s.name)}</button>`)
-    .join('');
-  pagenav.querySelectorAll('button').forEach((b) => {
-    b.addEventListener('click', () => { previewIndex = Number(b.dataset.i); renderPreview(); });
-  });
-
-  const screen = currentApp.screens[previewIndex];
-  if (screen.blocks.length === 0) {
-    body.innerHTML = '<div class="empty-note" style="padding:20px">This page has no content yet.</div>';
-    return;
-  }
-  body.innerHTML = screen.blocks.map((b) => renderWebsiteBlock(b, currentApp)).join('');
 }
 
 // ---- Status & submission ----

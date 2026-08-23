@@ -100,9 +100,8 @@
           <!-- Phone frame (apps) -->
           <div id="phone-preview" class="phone-frame">
             <div class="phone-notch"></div>
-            <div class="phone-header" id="preview-header"></div>
-            <div class="phone-body" id="preview-body"></div>
-            <div class="phone-tabbar" id="preview-tabbar"></div>
+            <iframe id="app-iframe" class="phone-iframe" sandbox="allow-scripts allow-forms" title="App preview"></iframe>
+            <div class="phone-home-bar"></div>
           </div>
           <!-- Browser frame (websites) -->
           <div id="browser-preview" class="browser-frame" style="display:none">
@@ -114,8 +113,7 @@
               </div>
               <div class="browser-url" id="browser-url">yoursite.com</div>
             </div>
-            <div class="browser-body" id="browser-body"></div>
-            <div class="browser-pagenav" id="browser-pagenav"></div>
+            <iframe id="web-iframe" class="browser-iframe" sandbox="allow-scripts allow-forms" title="Website preview"></iframe>
           </div>
 
           <!-- Actions -->

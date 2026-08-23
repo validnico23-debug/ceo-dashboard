@@ -58,6 +58,7 @@ function emptyApp(id, name, kind = 'app') {
     supportEmail: '',
     privacyPolicyUrl: '',
     screens: [],
+    previewHtml: '',
     status: 'draft', // draft | in_review | changes_requested | published
     submittedAt: null,
     publishedAt: null,
@@ -97,6 +98,7 @@ function materializeApp(b, spec, sourceLabel) {
   }));
 
   return {
+  const app = {
     id,
     kind,
     name: String(spec.name || (isWebsite ? 'My Website' : 'My App')).trim().slice(0, 30) || (isWebsite ? 'My Website' : 'My App'),
@@ -109,6 +111,7 @@ function materializeApp(b, spec, sourceLabel) {
     supportEmail: '',
     privacyPolicyUrl: '',
     screens,
+    previewHtml: '',
     status: 'draft',
     submittedAt: null,
     publishedAt: null,
@@ -118,6 +121,8 @@ function materializeApp(b, spec, sourceLabel) {
     createdAt: now,
     updatedAt: now,
   };
+  app.previewHtml = exportAppHtml(app);
+  return app;
 }
 
 // Deep-clones an existing app under new ids, remapping button "linkTo"
@@ -222,22 +227,8 @@ function validateForSubmission(app) {
   const issues = [];
   const noun = isWebsite ? 'Website' : 'App';
   if (!app.name || app.name.trim().length === 0) issues.push(`${noun} name is required.`);
-  if (app.name && app.name.length > 30) issues.push(`${noun} name must be 30 characters or fewer.`);
-  if (!app.description || app.description.trim().length < 40)
-    issues.push('Description must be at least 40 characters.');
-  if (!app.category) issues.push('Pick a category.');
-  if (!isWebsite) {
-    if (!app.subtitle || app.subtitle.trim().length === 0) issues.push('Subtitle is required.');
-    if (app.subtitle && app.subtitle.length > 30) issues.push('Subtitle must be 30 characters or fewer.');
-    if (!app.icon || app.icon.trim().length === 0) issues.push('App icon is required.');
-    if (!app.supportEmail || !app.supportEmail.includes('@')) issues.push('A valid support email is required.');
-    if (!app.privacyPolicyUrl || !/^https?:\/\//i.test(app.privacyPolicyUrl))
-      issues.push('A privacy policy URL (starting with http:// or https://) is required.');
-  }
-  const pageLabel = isWebsite ? 'pages' : 'screens';
-  if (app.screens.length < 2) issues.push(`Add at least 2 ${pageLabel}.`);
-  const empty = app.screens.filter((s) => s.blocks.length === 0);
-  if (empty.length > 0) issues.push(`${isWebsite ? 'Page(s)' : 'Screen(s)'} with no content: ${empty.map((s) => s.name).join(', ')}.`);
+  if (!app.previewHtml || app.previewHtml.trim().length < 200)
+    issues.push('Build your ' + (isWebsite ? 'website' : 'app') + ' via chat first — describe what you want and hit send.');
   return issues;
 }
 
@@ -275,15 +266,7 @@ function reviewApp(app, now = new Date()) {
   const elapsed = now - new Date(app.submittedAt);
   if (elapsed < ms) return false;
 
-  if (app.kind !== 'website' && totalBlockCount(app) < 4) {
-    app.status = 'changes_requested';
-    logEntry(
-      app,
-      'Changes requested — Guideline 4.2 (Minimum Functionality): add more content to your screens and resubmit.'
-    );
-  } else {
-    publishApp(app, now);
-  }
+  publishApp(app, now);
   touch(app);
   return true;
 }
@@ -803,28 +786,47 @@ function applySpec(b, app, spec) {
   }
 }
 
-// Takes a user chat message and updates an existing app via AI (or a fallback).
-// Returns { reply, spec } where spec (if present) should be applied via applySpec.
-async function chatEditApp(app, message) {
+// Generates a complete, interactive HTML app or website from a prompt.
+// Returns { name, reply, html } — html is a deployable single-file document.
+async function generateAppHtml(prompt, kind = 'app') {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  const isWebsite = app.kind === 'website';
-  const validTypes = isWebsite ? WEBSITE_BLOCK_TYPES : BLOCK_TYPES;
-  const validCats = isWebsite ? WEBSITE_CATEGORIES : CATEGORIES;
+  const isWebsite = kind === 'website';
 
   if (!apiKey) {
-    return { reply: `Got it! Noted your request. Connect an ANTHROPIC_API_KEY to enable AI-powered edits.` };
+    const spec = isWebsite ? fallbackGenerateWebsite(prompt) : fallbackGenerate(prompt);
+    const tmp = { ...spec, id: 0, kind, screens: spec.screens || [], previewHtml: '', log: [], messages: [] };
+    tmp.previewHtml = '';
+    const html = exportAppHtml(tmp);
+    return { name: spec.name, reply: `Built "${spec.name}" — ${spec.subtitle || 'your new ' + kind}. Add an ANTHROPIC_API_KEY for a real AI-generated design.`, html };
   }
 
-  const currentState = JSON.stringify({
-    name: app.name, subtitle: app.subtitle, description: app.description,
-    category: app.category, icon: app.icon, color: app.color,
-    screens: (app.screens || []).map((s) => ({
-      name: s.name,
-      blocks: s.blocks.map((bl) => ({ type: bl.type, text: bl.text })),
-    })),
-  });
+  const userMsg = isWebsite
+    ? `Design a complete, self-contained responsive website for: "${prompt.slice(0, 400)}"
 
-  const prompt = `You are editing an existing ${app.kind}. Current state:\n${currentState}\n\nUser says: "${message.slice(0, 600)}"\n\nRespond ONLY with valid JSON (no markdown fences):\n{\n  "reply": "1-2 sentence casual confirmation of what you changed",\n  "spec": { complete updated ${app.kind} state — same shape as the current state, keeping everything that wasn't changed. Valid block types: ${JSON.stringify(validTypes)}. Valid categories: ${JSON.stringify(validCats)}. }\n}`;
+Return ONLY valid JSON (no markdown, no extra text):
+{"name":"Brand/site name (<=30 chars)","reply":"What I built (1-2 sentences)","html":"<!doctype html>...(complete HTML)..."}
+
+HTML rules:
+- Complete <!doctype html> with all CSS and JS inline — zero external dependencies
+- A real polished website: sticky nav, hero, 3-5 content sections, footer
+- Smooth transitions, hover states, a fitting accent color
+- Internal anchor navigation that works (smooth scroll or show/hide)
+- Real specific content — not placeholder text
+- Valid HTML5, static-file deployable to Vercel as index.html`
+    : `Design a complete, interactive mobile app UI for: "${prompt.slice(0, 400)}"
+
+Return ONLY valid JSON (no markdown, no extra text):
+{"name":"App name (<=30 chars)","reply":"What I built (1-2 sentences)","html":"<!doctype html>...(complete HTML)..."}
+
+HTML rules:
+- Complete <!doctype html> with all CSS and JS inline — zero external dependencies
+- Mobile viewport (390px), sticky header with app name/icon, bottom tab bar with 3-5 tabs
+- Each tab shows a different screen (show/hide with JS — no page reloads)
+- First tab is active by default; clicking tabs switches screens with smooth transition
+- Native-feeling: proper fonts (system-ui), cards, rounded inputs, colored accent buttons
+- Interactive: tab nav works, inputs are focusable, buttons have visual feedback
+- Real specific content relevant to the prompt — not "Lorem ipsum"
+- Deployable single-file HTML`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -836,8 +838,64 @@ async function chatEditApp(app, message) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 6000,
+        messages: [{ role: 'user', content: userMsg }],
+      }),
+    });
+    if (!res.ok) throw new Error('AI request failed');
+    const json = await res.json();
+    const text = json.content?.[0]?.text;
+    if (!text) throw new Error('No content');
+    const parsed = extractJson(text);
+    if (!parsed || !parsed.html) throw new Error('No html in response');
+    return {
+      name: String(parsed.name || '').trim().slice(0, 30) || (isWebsite ? 'My Website' : 'My App'),
+      reply: String(parsed.reply || 'Done!'),
+      html: String(parsed.html),
+    };
+  } catch {
+    const spec = isWebsite ? fallbackGenerateWebsite(prompt) : fallbackGenerate(prompt);
+    const tmp = { ...spec, id: 0, kind, screens: spec.screens || [], previewHtml: '', log: [], messages: [] };
+    const html = exportAppHtml(tmp);
+    return { name: spec.name, reply: `Built "${spec.name}" — ${spec.subtitle || 'your new ' + kind}.`, html };
+  }
+}
+
+// Takes a user chat message and re-generates the app HTML via AI.
+// Returns { reply, html } — html replaces app.previewHtml if present.
+async function chatEditApp(app, message) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return { reply: 'Got it! Connect an ANTHROPIC_API_KEY to enable AI-powered edits.', html: null };
+  }
+
+  const isWebsite = app.kind === 'website';
+  const currentHtml = (app.previewHtml || '').slice(0, 10000);
+
+  const userMsg = `You are editing an existing ${app.kind}. Current HTML:
+<current_html>
+${currentHtml || '(no HTML yet — generate a fresh one)'}
+</current_html>
+
+User says: "${message.slice(0, 600)}"
+
+Update the ${app.kind} HTML to fulfill the request. Return ONLY valid JSON (no markdown fences):
+{"reply":"What I changed — 1-2 casual sentences","html":"<!doctype html>...(complete updated HTML)..."}
+
+The HTML must be complete and self-contained (all CSS/JS inline, no external deps). Keep everything the user didn't ask to change.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 6000,
+        messages: [{ role: 'user', content: userMsg }],
       }),
     });
     if (!res.ok) throw new Error('AI request failed');
@@ -846,9 +904,15 @@ async function chatEditApp(app, message) {
     if (!text) throw new Error('No content');
     const parsed = extractJson(text);
     if (!parsed || typeof parsed !== 'object') throw new Error('Bad JSON');
-    return { reply: String(parsed.reply || 'Done!'), spec: parsed.spec || null };
+    return {
+      reply: String(parsed.reply || 'Done!'),
+      html: parsed.html ? String(parsed.html) : null,
+    };
   } catch {
-    return { reply: `Got it! I've noted "${message.slice(0, 60)}…" — try again if the update didn't go through.` };
+    return {
+      reply: `Got it, noted "${message.slice(0, 60)}…" — try again if the update didn't come through.`,
+      html: null,
+    };
   }
 }
 
@@ -891,12 +955,12 @@ function renderBlockHtml(block, screenIndexById) {
   }
 }
 
-// EXPORT NOTE: this generates a real, working single-file PWA — not a
-// no-op mock. It's a legitimate starting point (wrap it with Capacitor or
-// Cordova to build native iOS/Android binaries), but it is not itself a
-// submission to Apple/Google; see the in-app "Going live for real" panel.
+// Returns the Vercel-deployable HTML for an app.
+// Uses AI-generated previewHtml if available (the preferred path);
+// falls back to rendering the legacy block/screen structure.
 function exportAppHtml(app) {
-  const screenIndexById = new Map(app.screens.map((s, i) => [s.id, i]));
+  if (app.previewHtml && app.previewHtml.trim().length > 200) return app.previewHtml;
+  const screenIndexById = new Map((app.screens || []).map((s, i) => [s.id, i]));
   const screensNav = app.screens
     .map((s, i) => `<button class="tab" data-i="${i}">${escapeHtml(s.name)}</button>`)
     .join('');
@@ -983,6 +1047,7 @@ module.exports = {
   TEMPLATES,
   WEBSITE_TEMPLATES,
   generateAppSpec,
+  generateAppHtml,
   exportAppHtml,
   applySpec,
   chatEditApp,
