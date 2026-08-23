@@ -351,9 +351,10 @@ function wireStaticEvents() {
   // Empty state
   document.getElementById('es-template-btn').addEventListener('click', () => openModal('template-modal'));
 
-  // Submit / review
+  // Submit / review / deploy
   document.getElementById('submit-btn').addEventListener('click', handleSubmitForReview);
   document.getElementById('check-review-btn').addEventListener('click', handleCheckReview);
+  document.getElementById('deploy-btn').addEventListener('click', handleDeploy);
 
   // Logout
   document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -404,6 +405,16 @@ function renderStatus() {
   document.getElementById('check-review-btn').textContent = isWebsite ? 'Check status' : 'Check review status';
   document.getElementById('export-btn').href = `/api/apps/${currentApp.id}/export`;
   document.getElementById('submit-issues').style.display = 'none';
+
+  const deployLive = document.getElementById('deploy-live');
+  if (currentApp.deployUrl) {
+    deployLive.style.display = 'flex';
+    const link = document.getElementById('deploy-live-link');
+    link.href = currentApp.deployUrl;
+    link.textContent = currentApp.deployUrl.replace(/^https?:\/\//, '');
+  } else {
+    deployLive.style.display = 'none';
+  }
 
   const stats = document.getElementById('live-stats');
   if (currentApp.status === 'published' && currentApp.stats) {
@@ -459,6 +470,23 @@ async function handleCheckReview() {
   btn.disabled = false;
   const isWebsite = (currentApp.kind || 'app') === 'website';
   btn.textContent = isWebsite ? 'Check status' : 'Check review status';
+}
+
+async function handleDeploy() {
+  const btn = document.getElementById('deploy-btn');
+  btn.disabled = true;
+  btn.textContent = 'Deploying…';
+  try {
+    const result = await api(`/api/apps/${currentApp.id}/deploy`, { method: 'POST' });
+    currentApp = result.app;
+    renderStatus();
+    await refreshListEntry();
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Deploy live';
+  }
 }
 
 init();

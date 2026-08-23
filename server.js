@@ -772,6 +772,28 @@ app.post(
   })
 );
 
+app.post(
+  '/api/apps/:id/deploy',
+  asyncRoute(async (req, res) => {
+    const b = await currentBusiness(req);
+    const existing = appStudio.findApp(b, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'App not found' });
+    const result = await appStudio.deployToVercel(existing);
+    if (!result.ok) return res.status(502).json({ error: result.error });
+    const updated = await updateBusiness(req, (b2) => {
+      const a = appStudio.findApp(b2, req.params.id);
+      if (!a) return null;
+      a.deployUrl = result.url;
+      a.deployedAt = new Date().toISOString();
+      appStudio.touch(a);
+      appStudio.logEntry(a, `Deployed live at ${result.url}`);
+      return a;
+    });
+    if (!updated) return res.status(404).json({ error: 'App not found' });
+    res.json({ app: updated, url: result.url });
+  })
+);
+
 app.get(
   '/api/apps/:id/export',
   asyncRoute(async (req, res) => {

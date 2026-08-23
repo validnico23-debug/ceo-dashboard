@@ -100,7 +100,7 @@
           <!-- Phone frame (apps) -->
           <div id="phone-preview" class="phone-frame">
             <div class="phone-notch"></div>
-            <iframe id="app-iframe" class="phone-iframe" sandbox="allow-scripts allow-forms" title="App preview"></iframe>
+            <iframe id="app-iframe" class="phone-iframe" sandbox="allow-scripts allow-forms allow-popups allow-modals" title="App preview"></iframe>
             <div class="phone-home-bar"></div>
           </div>
           <!-- Browser frame (websites) -->
@@ -113,15 +113,20 @@
               </div>
               <div class="browser-url" id="browser-url">yoursite.com</div>
             </div>
-            <iframe id="web-iframe" class="browser-iframe" sandbox="allow-scripts allow-forms" title="Website preview"></iframe>
+            <iframe id="web-iframe" class="browser-iframe" sandbox="allow-scripts allow-forms allow-popups allow-modals" title="Website preview"></iframe>
           </div>
 
           <!-- Actions -->
           <div class="preview-actions">
+            <div class="deploy-live" id="deploy-live" style="display:none">
+              <span class="deploy-dot"></span>
+              <a id="deploy-live-link" href="#" target="_blank" rel="noopener"></a>
+            </div>
             <div class="submit-issues" id="submit-issues" style="display:none"></div>
             <div class="live-stats" id="live-stats" style="display:none"></div>
             <div class="pipeline-actions">
-              <button class="btn primary" id="submit-btn" type="button">Submit for review</button>
+              <button class="btn primary" id="deploy-btn" type="button">Deploy live</button>
+              <button class="btn small" id="submit-btn" type="button">Submit for review</button>
               <button class="btn small" id="check-review-btn" type="button" style="display:none">Check status</button>
               <a class="btn small" id="export-btn" href="#">Export (HTML)</a>
             </div>

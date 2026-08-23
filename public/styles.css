@@ -1984,6 +1984,34 @@ body.studio-mode .preview-actions {
 }
 body.studio-mode .pipeline-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
+body.studio-mode .deploy-live {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(51,185,62,0.08);
+  border: 1px solid rgba(51,185,62,0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+}
+body.studio-mode .deploy-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #33B93E;
+  box-shadow: 0 0 0 3px rgba(51,185,62,0.2);
+  flex-shrink: 0;
+}
+body.studio-mode .deploy-live a {
+  color: #33B93E;
+  font-family: "Geist Mono", monospace;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.studio-mode .deploy-live a:hover { text-decoration: underline; }
+
 /* ── Sidebar new form ───────────────────────────────────── */
 body.studio-mode .sidebar-new {
   margin-top: 6px;

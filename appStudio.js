@@ -64,6 +64,8 @@ function emptyApp(id, name, kind = 'app') {
     publishedAt: null,
     stats: null,
     messages: [],
+    deployUrl: null,
+    deployedAt: null,
     log: [{ id: 1, text: isWebsite ? 'Website created.' : 'App created.', createdAt: now }],
     createdAt: now,
     updatedAt: now,
@@ -97,7 +99,6 @@ function materializeApp(b, spec, sourceLabel) {
     })),
   }));
 
-  return {
   const app = {
     id,
     kind,
@@ -117,6 +118,8 @@ function materializeApp(b, spec, sourceLabel) {
     publishedAt: null,
     stats: null,
     messages: [],
+    deployUrl: null,
+    deployedAt: null,
     log: [{ id: 1, text: sourceLabel || (isWebsite ? 'Website created.' : 'App created.'), createdAt: now }],
     createdAt: now,
     updatedAt: now,
@@ -157,6 +160,8 @@ function duplicateApp(b, source) {
     submittedAt: null,
     publishedAt: null,
     stats: null,
+    deployUrl: null,
+    deployedAt: null,
     log: [{ id: 1, text: `Duplicated from "${source.name}".`, createdAt: now }],
     createdAt: now,
     updatedAt: now,
@@ -1023,6 +1028,42 @@ document.querySelectorAll('[data-goto]').forEach((btn) => {
 `;
 }
 
+// Deploys an app's generated HTML to Vercel as a real, live static site.
+// Requires VERCEL_TOKEN in the environment. Returns { ok, url } or { ok: false, error }.
+async function deployToVercel(app) {
+  const token = process.env.VERCEL_TOKEN;
+  if (!token) return { ok: false, error: 'No VERCEL_TOKEN configured on the server. Add one to enable real deploys.' };
+
+  const html = app.previewHtml || exportAppHtml(app);
+  const slug = (app.name || 'app').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 50) || 'app';
+  const projectName = `${slug}-${app.id}`;
+
+  try {
+    const res = await fetch('https://api.vercel.com/v13/deployments', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: projectName,
+        target: 'production',
+        files: [{ file: 'index.html', data: html }],
+        projectSettings: { framework: null },
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      return { ok: false, error: json.error?.message || 'Vercel deploy failed.' };
+    }
+    const url = json.url ? `https://${json.url}` : null;
+    if (!url) return { ok: false, error: 'Vercel did not return a URL.' };
+    return { ok: true, url };
+  } catch (err) {
+    return { ok: false, error: 'Could not reach Vercel — try again in a moment.' };
+  }
+}
+
 module.exports = {
   CATEGORIES,
   WEBSITE_CATEGORIES,
@@ -1051,4 +1092,5 @@ module.exports = {
   exportAppHtml,
   applySpec,
   chatEditApp,
+  deployToVercel,
 };
