@@ -151,7 +151,7 @@ function renderDetails() {
   form.name.value = currentApp.name || '';
   form.subtitle.value = currentApp.subtitle || '';
   form.icon.value = currentApp.icon || '';
-  form.color.value = currentApp.color || '#4f46e5';
+  form.color.value = currentApp.color || '#2563eb';
   form.category.value = currentApp.category || '';
   form.platform.value = currentApp.platform || 'both';
   form.description.value = currentApp.description || '';
@@ -511,7 +511,7 @@ async function handleScreensBlur(e) {
 
 function renderPreview() {
   const header = document.getElementById('preview-header');
-  header.style.background = currentApp.color || '#4f46e5';
+  header.style.background = currentApp.color || '#2563eb';
   header.innerHTML = `<span class="icon">${escapeHtml(currentApp.icon || '📱')}</span><div><div class="name">${escapeHtml(currentApp.name || 'My App')}</div><div class="sub">${escapeHtml(currentApp.subtitle || '')}</div></div>`;
 
   const tabbar = document.getElementById('preview-tabbar');
@@ -639,7 +639,7 @@ function drawScreenshot(canvas, app, screen) {
   ctx.fillRect(0, 0, SHOT_W, SHOT_H);
 
   const headerH = 300;
-  ctx.fillStyle = app.color || '#4f46e5';
+  ctx.fillStyle = app.color || '#2563eb';
   ctx.fillRect(0, 0, SHOT_W, headerH);
   ctx.fillStyle = '#ffffff';
   ctx.textBaseline = 'alphabetic';
@@ -671,7 +671,7 @@ function drawScreenshot(canvas, app, screen) {
         break;
       case 'button': {
         const h = 108;
-        ctx.fillStyle = app.color || '#4f46e5';
+        ctx.fillStyle = app.color || '#2563eb';
         roundRect(ctx, pad, y, contentW, h, 18);
         ctx.fill();
         ctx.fillStyle = '#ffffff';
@@ -755,7 +755,7 @@ function drawScreenshot(canvas, app, screen) {
   ctx.textAlign = 'center';
   ctx.font = '32px sans-serif';
   currentApp.screens.forEach((s, i) => {
-    ctx.fillStyle = s.id === screen.id ? app.color || '#4f46e5' : '#6b7280';
+    ctx.fillStyle = s.id === screen.id ? app.color || '#2563eb' : '#6b7280';
     ctx.font = s.id === screen.id ? '700 32px sans-serif' : '32px sans-serif';
     ctx.fillText(s.name, slotW * i + slotW / 2, tabY + tabH / 2 + 12);
   });

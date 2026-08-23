@@ -39,7 +39,7 @@ function emptyApp(id, name) {
     description: '',
     category: '',
     icon: '📱',
-    color: '#4f46e5',
+    color: '#2563eb',
     platform: 'both',
     supportEmail: '',
     privacyPolicyUrl: '',
@@ -62,7 +62,7 @@ function materializeApp(b, spec, sourceLabel) {
   const id = b.nextIds.apps++;
   const category = CATEGORIES.includes(spec.category) ? spec.category : '';
   const icon = String(spec.icon || '📱').trim().slice(0, 4) || '📱';
-  const color = /^#[0-9a-f]{6}$/i.test(spec.color || '') ? spec.color : '#4f46e5';
+  const color = /^#[0-9a-f]{6}$/i.test(spec.color || '') ? spec.color : '#2563eb';
 
   const screens = (Array.isArray(spec.screens) ? spec.screens : []).slice(0, 8).map((s) => ({
     id: b.nextIds.appScreens++,
@@ -284,7 +284,7 @@ const TEMPLATES = {
       'TaskFlow helps you organize your day with simple to-do lists, reminders, and a satisfying way to track what you finish.',
     category: 'Productivity',
     icon: '✅',
-    color: '#4f46e5',
+    color: '#2563eb',
     screens: [
       { name: 'Today', blocks: [
         { type: 'heading', text: 'Today' },
@@ -384,7 +384,7 @@ const TEMPLATES = {
       'Ripple is a simple social feed for sharing short updates and photos with friends and seeing what they are up to.',
     category: 'Social Networking',
     icon: '💬',
-    color: '#7c6ff0',
+    color: '#0d9488',
     screens: [
       { name: 'Feed', blocks: [
         { type: 'heading', text: 'Feed' },
@@ -485,7 +485,7 @@ function fallbackGenerate(prompt) {
     description: `${name} helps with: ${prompt.trim()}. Designed to be simple, fast, and genuinely useful every day.`,
     category,
     icon,
-    color: '#4f46e5',
+    color: '#2563eb',
     screens: [
       { name: 'Welcome', blocks: [
         { type: 'heading', text: `Welcome to ${name}` },
@@ -550,7 +550,7 @@ Respond with ONLY a single valid JSON object (no markdown fences, no commentary)
   "description": string (2-3 sentences, >=40 chars),
   "category": one of ${JSON.stringify(CATEGORIES)},
   "icon": string (a single emoji),
-  "color": string (a hex color like "#4f46e5"),
+  "color": string (a hex color like "#2563eb"),
   "screens": array of 3-5 objects: { "name": string, "blocks": array of 2-5 objects: { "type": one of ${JSON.stringify(BLOCK_TYPES)}, "text": string } }
 }
 For "list" blocks, put items separated by " | ". Keep all text realistic and specific to the idea, not generic placeholder text.`,

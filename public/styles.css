@@ -1,47 +1,47 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;650;700;800&display=swap');
 
 :root {
-  --bg: #f6f7fa;
+  --bg: #f4f6f9;
   --surface: #ffffff;
-  --surface-2: #f8f9fb;
-  --border: #e5e7ec;
-  --text: #14161c;
-  --text-dim: #6b7280;
-  --accent: #4f46e5;
-  --accent-2: #7c6ff0;
-  --accent-soft: #eef0ff;
+  --surface-2: #eef1f6;
+  --border: #dbe1e9;
+  --text: #101828;
+  --text-dim: #64748b;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #e8f0fe;
   --good: #15803d;
   --good-soft: #ecfdf3;
   --warn: #b45309;
   --warn-soft: #fffbeb;
   --bad: #b91c1c;
   --bad-soft: #fef2f2;
-  --radius: 14px;
-  --radius-sm: 9px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 10px rgba(16, 24, 40, 0.04);
-  --shadow-lift: 0 2px 4px rgba(16, 24, 40, 0.06), 0 10px 24px rgba(16, 24, 40, 0.07);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 6px rgba(16, 24, 40, 0.03);
+  --shadow-lift: 0 1px 3px rgba(16, 24, 40, 0.06), 0 6px 16px rgba(16, 24, 40, 0.06);
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #101114;
-    --surface: #1a1b20;
-    --surface-2: #1f2126;
-    --border: #2a2c33;
-    --text: #f1f2f5;
-    --text-dim: #9498a3;
-    --accent: #8b83f6;
-    --accent-2: #a59df8;
-    --accent-soft: #24223d;
+    --bg: #0b1220;
+    --surface: #121a2b;
+    --surface-2: #17223a;
+    --border: #263349;
+    --text: #eef2f8;
+    --text-dim: #8996ac;
+    --accent: #4d8dfb;
+    --accent-hover: #6ea1fc;
+    --accent-soft: #16233d;
     --good: #4ade80;
     --good-soft: #142a1d;
     --warn: #fbbf24;
     --warn-soft: #2a2210;
     --bad: #f87171;
     --bad-soft: #2c1616;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.25);
-    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.4);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.22);
+    --shadow-lift: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -98,7 +98,7 @@ header.topbar .biz-name {
 
 /* CEO Briefing */
 .briefing {
-  background: linear-gradient(135deg, var(--accent-soft), var(--surface) 55%);
+  background: var(--accent-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -117,7 +117,7 @@ header.topbar .biz-name {
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: white;
   display: flex;
   align-items: center;
@@ -125,7 +125,7 @@ header.topbar .biz-name {
   font-weight: 700;
   font-size: 17px;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
 }
 
 .briefing-head .name {
@@ -365,12 +365,12 @@ a:focus-visible {
 .btn:disabled { opacity: 0.55; cursor: default; transform: none; }
 
 .btn.primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   border-color: var(--accent);
   color: white;
 }
 
-.btn.primary:hover { opacity: 0.92; color: white; }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: white; }
 
 .btn.small { padding: 4px 9px; font-size: 11.5px; }
 
@@ -487,7 +487,32 @@ footer.hint {
 }
 
 .agent-card .icon {
-  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-log-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  vertical-align: -2px;
+  margin-right: 2px;
 }
 
 .agent-card .name {
@@ -545,14 +570,14 @@ nav.appbar .brand .mark {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   font-weight: 800;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
 
 nav.appbar .user {
@@ -587,7 +612,7 @@ nav.appbar .user {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: white;
   display: flex;
   align-items: center;
@@ -595,7 +620,7 @@ nav.appbar .user {
   font-weight: 800;
   font-size: 18px;
   margin-bottom: 16px;
-  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.3);
 }
 
 .auth-card h1 {

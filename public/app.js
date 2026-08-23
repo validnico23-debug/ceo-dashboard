@@ -257,7 +257,7 @@ function renderAgents({ agents, log, aiDrafting }) {
     log.slice(0, 10).forEach((entry) => {
       const div = document.createElement('div');
       div.className = 'feed-item';
-      div.innerHTML = `<div class="meta">${entry.icon} <strong>${escapeHtml(entry.agent)}</strong> · ${entry.role} · ${fmtRelative(entry.createdAt)}</div>${escapeHtml(entry.text)}`;
+      div.innerHTML = `<div class="meta"><span class="agent-log-icon">${entry.icon}</span> <strong>${escapeHtml(entry.agent)}</strong> · ${entry.role} · ${fmtRelative(entry.createdAt)}</div>${escapeHtml(entry.text)}`;
       feed.appendChild(div);
     });
   }
@@ -273,7 +273,7 @@ function renderTasks(tasks) {
         const div = document.createElement('div');
         div.className = 'task';
         div.innerHTML = `
-          <div class="title">${escapeHtml(t.title)}${t.createdByAgent ? ` <span class="agent-badge">🤖 ${escapeHtml(t.createdByAgent)}</span>` : ''}</div>
+          <div class="title">${escapeHtml(t.title)}${t.createdByAgent ? ` <span class="agent-badge">via ${escapeHtml(t.createdByAgent)}</span>` : ''}</div>
           <div class="meta"><span>${t.department} · ${escapeHtml(t.assignee)}</span><span class="tag pri-${t.priority}">${t.priority}</span></div>
           <div class="actions"></div>
         `;
