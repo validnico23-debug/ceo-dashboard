@@ -529,7 +529,7 @@ function renderStatus() {
     stats.style.display = 'flex';
     stats.innerHTML = `
       <div class="stat"><div class="value">${currentApp.stats.downloads.toLocaleString('en-US')}</div><div class="label">Downloads</div></div>
-      <div class="stat"><div class="value">⭐ ${currentApp.stats.rating.toFixed(1)}</div><div class="label">${currentApp.stats.ratingCount.toLocaleString('en-US')} ratings</div></div>
+      <div class="stat"><div class="value">${currentApp.stats.rating.toFixed(1)}</div><div class="label">Rating · ${currentApp.stats.ratingCount.toLocaleString('en-US')} reviews</div></div>
     `;
   } else {
     stats.style.display = 'none';

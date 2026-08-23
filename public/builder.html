@@ -12,7 +12,7 @@
 <body>
 <div class="app">
   <nav class="appbar">
-    <div class="brand"><span class="mark">🛠</span> App Builder</div>
+    <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="11" y1="18" x2="13" y2="18"></line></svg></span> App Builder</div>
     <div class="user">
       <a class="btn small" href="/">← Dashboard</a>
       <span id="user-email"></span>
@@ -29,8 +29,8 @@
         <button class="btn primary" type="submit">+ New app</button>
       </form>
       <div class="sidebar-quick-actions">
-        <button class="btn small" id="open-template-modal" type="button">📋 Start from template</button>
-        <button class="btn small" id="open-ai-modal" type="button">✨ Generate with AI</button>
+        <button class="btn small" id="open-template-modal" type="button">Start from template</button>
+        <button class="btn small" id="open-ai-modal" type="button">Generate with AI</button>
       </div>
     </aside>
 
@@ -43,7 +43,7 @@
             <div class="section-title">
               App Details
               <span>
-                <button class="btn small" id="duplicate-app-btn" type="button">⧉ Duplicate</button>
+                <button class="btn small" id="duplicate-app-btn" type="button">Duplicate</button>
                 <button class="btn small" id="delete-app-btn" type="button">Delete app</button>
               </span>
             </div>
@@ -119,7 +119,7 @@
             <div class="pipeline-actions">
               <button class="btn primary" id="submit-btn" type="button">Submit for review</button>
               <button class="btn small" id="check-review-btn" type="button">Check review status</button>
-              <a class="btn small" id="export-btn" href="#">⬇ Export app (HTML)</a>
+              <a class="btn small" id="export-btn" href="#">Export app (HTML)</a>
             </div>
             <div class="feed" id="app-log" style="margin-top:14px"></div>
           </div>
@@ -153,7 +153,7 @@
   <div class="modal-overlay" id="ai-modal" style="display:none">
     <div class="modal-card">
       <div class="modal-head">
-        <h3>✨ Generate with AI</h3>
+        <h3>Generate with AI</h3>
         <button class="icon-btn" id="close-ai-modal" type="button">✕</button>
       </div>
       <p class="modal-sub" id="ai-modal-sub">Describe your app idea in a sentence and get a full first draft — name, screens, and content.</p>

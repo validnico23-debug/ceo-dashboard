@@ -241,7 +241,7 @@ function growPublishedApp(app) {
   app.stats.rating = Math.min(5, Math.max(3.5, +(app.stats.rating + drift).toFixed(2)));
 
   const crossed = DOWNLOAD_MILESTONES.find((m) => before < m && app.stats.downloads >= m);
-  if (crossed) logEntry(app, `🎉 Milestone: ${crossed.toLocaleString('en-US')} downloads!`);
+  if (crossed) logEntry(app, `Passed ${crossed.toLocaleString('en-US')} downloads.`);
 }
 
 function tickApps(b, now = new Date()) {
