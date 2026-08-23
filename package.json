@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "A CEO dashboard that tracks tasks, cash, sales, and team activity, and generates a daily CEO briefing.",
   "main": "server.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "start": "node server.js"
   },
