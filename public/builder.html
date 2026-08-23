@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>App Builder — CEO Dashboard</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <nav class="appbar">
+    <div class="brand"><span class="mark">🛠</span> App Builder</div>
+    <div class="user">
+      <a class="btn small" href="/">← Dashboard</a>
+      <span id="user-email"></span>
+      <button class="btn small" id="logout-btn">Log out</button>
+    </div>
+  </nav>
+
+  <div class="builder-layout">
+    <aside class="card apps-sidebar">
+      <div class="section-title">Your Apps</div>
+      <div id="apps-list" class="apps-list"></div>
+      <form class="inline-form" id="new-app-form">
+        <input type="text" name="name" placeholder="New app name…" required />
+        <button class="btn primary" type="submit">+ New app</button>
+      </form>
+    </aside>
+
+    <div id="no-app-selected" class="card empty-note">Create your first app on the left to start building.</div>
+
+    <div id="app-editor" class="editor-wrap" style="display:none">
+      <div class="sections">
+        <div>
+          <div class="card">
+            <div class="section-title">
+              App Details
+              <button class="btn small" id="delete-app-btn" type="button">Delete app</button>
+            </div>
+            <form id="app-details-form" class="stack-form">
+              <label>App name (max 30 chars)
+                <input type="text" name="name" maxlength="30" required />
+              </label>
+              <label>Subtitle / tagline (max 30 chars)
+                <input type="text" name="subtitle" maxlength="30" placeholder="A short, punchy tagline" />
+              </label>
+              <div class="stack-row">
+                <label>Icon (emoji)
+                  <input type="text" name="icon" maxlength="4" style="width:70px;text-align:center;font-size:18px" />
+                </label>
+                <label>Color
+                  <input type="color" name="color" />
+                </label>
+                <label>Category
+                  <select name="category" id="category-select"></select>
+                </label>
+                <label>Platform
+                  <select name="platform">
+                    <option value="both">iOS &amp; Android</option>
+                    <option value="ios">iOS only</option>
+                    <option value="android">Android only</option>
+                  </select>
+                </label>
+              </div>
+              <div class="emoji-suggestions" id="emoji-suggestions"></div>
+              <label>Description (min 40 chars)
+                <textarea name="description" rows="3" placeholder="What does your app do?"></textarea>
+              </label>
+              <div class="stack-row">
+                <label>Support email
+                  <input type="email" name="supportEmail" placeholder="support@yourapp.com" />
+                </label>
+                <label>Privacy policy URL
+                  <input type="url" name="privacyPolicyUrl" placeholder="https://…" />
+                </label>
+              </div>
+              <div class="save-hint" id="save-hint">Saved</div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="section-title">Screens</div>
+            <div id="screens-editor" class="screens-editor"></div>
+            <form class="inline-form" id="new-screen-form">
+              <input type="text" name="name" placeholder="Screen name…" required />
+              <button class="btn primary" type="submit">+ Add screen</button>
+            </form>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="section-title">Live Preview</div>
+            <div class="phone-frame">
+              <div class="phone-notch"></div>
+              <div class="phone-header" id="preview-header"></div>
+              <div class="phone-body" id="preview-body"></div>
+              <div class="phone-tabbar" id="preview-tabbar"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-title">
+              App Store Status
+              <span class="status-badge" id="status-badge">draft</span>
+            </div>
+            <div class="submit-issues" id="submit-issues" style="display:none"></div>
+            <div class="pipeline-actions">
+              <button class="btn primary" id="submit-btn" type="button">Submit for review</button>
+              <button class="btn small" id="check-review-btn" type="button">Check review status</button>
+              <a class="btn small" id="export-btn" href="#">⬇ Export app (HTML)</a>
+            </div>
+            <div class="feed" id="app-log" style="margin-top:14px"></div>
+          </div>
+
+          <div class="card going-live-card">
+            <div class="section-title">Going live for real</div>
+            <p>This submission pipeline is a working simulation of App Store Connect's review flow (Submitted → In Review → Published/Changes Requested) so you can design and test the whole journey.</p>
+            <p>To actually ship to Apple's App Store or Google Play, you'll additionally need to:</p>
+            <ul>
+              <li>Enroll in the Apple Developer Program ($99/yr) and/or a Google Play Developer account ($25 one-time).</li>
+              <li>Turn this design into a real app binary — the <strong>Export app</strong> button above gives you a working PWA to start from; wrap it with <strong>Capacitor</strong> or <strong>Cordova</strong> to build native iOS/Android binaries, or hand it to a developer as a spec.</li>
+              <li>Upload the signed binary via Xcode/Transporter (iOS) or the Play Console (Android), fill in the same listing details you entered here, and submit for Apple/Google's real review.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="builder.js"></script>
+</body>
+</html>

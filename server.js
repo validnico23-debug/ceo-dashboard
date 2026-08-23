@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const db = require('./db');
 const { generateBriefing } = require('./ceoBrain');
 const { AGENTS, runAgents } = require('./agents');
+const appStudio = require('./appStudio');
 
 const app = express();
 const PORT = process.env.PORT || 4173;
@@ -178,6 +179,27 @@ async function agentsTick() {
 }
 setInterval(agentsTick, 60_000);
 agentsTick();
+
+// App Store review moves forward in the background too, independent of any
+// page view, same as the agents above.
+let reviewTickRunning = false;
+async function reviewTick() {
+  if (reviewTickRunning) return;
+  reviewTickRunning = true;
+  try {
+    await db.update((data) => {
+      for (const businessId of Object.keys(data.businesses)) {
+        appStudio.reviewAllApps(data.businesses[businessId]);
+      }
+    });
+  } catch (err) {
+    console.error('Review tick failed:', err.message);
+  } finally {
+    reviewTickRunning = false;
+  }
+}
+setInterval(reviewTick, 30_000);
+reviewTick();
 
 // ---- Briefing ----
 app.get(
@@ -399,6 +421,284 @@ app.post(
       return p;
     });
     res.status(201).json(entry);
+  })
+);
+
+// ---- App Studio (build-your-own-app + simulated App Store submission) ----
+
+function appListView(a) {
+  return {
+    id: a.id,
+    name: a.name,
+    subtitle: a.subtitle,
+    icon: a.icon,
+    color: a.color,
+    category: a.category,
+    status: a.status,
+    screenCount: a.screens.length,
+    updatedAt: a.updatedAt,
+  };
+}
+
+app.get(
+  '/api/app-studio/meta',
+  (req, res) => {
+    res.json({ categories: appStudio.CATEGORIES, blockTypes: appStudio.BLOCK_TYPES });
+  }
+);
+
+app.get(
+  '/api/apps',
+  asyncRoute(async (req, res) => {
+    const b = await currentBusiness(req);
+    res.json(b.apps.map(appListView));
+  })
+);
+
+app.post(
+  '/api/apps',
+  asyncRoute(async (req, res) => {
+    const name = (req.body.name || '').trim() || 'My App';
+    const app_ = await updateBusiness(req, (b) => {
+      const a = appStudio.emptyApp(b.nextIds.apps++, name);
+      b.apps.push(a);
+      return a;
+    });
+    res.status(201).json(app_);
+  })
+);
+
+app.get(
+  '/api/apps/:id',
+  asyncRoute(async (req, res) => {
+    const b = await currentBusiness(req);
+    const a = appStudio.findApp(b, req.params.id);
+    if (!a) return res.status(404).json({ error: 'App not found' });
+    res.json(a);
+  })
+);
+
+const EDITABLE_APP_FIELDS = [
+  'name',
+  'subtitle',
+  'description',
+  'category',
+  'icon',
+  'color',
+  'platform',
+  'supportEmail',
+  'privacyPolicyUrl',
+];
+
+app.patch(
+  '/api/apps/:id',
+  asyncRoute(async (req, res) => {
+    const a = await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      if (!app_) return null;
+      for (const field of EDITABLE_APP_FIELDS) {
+        if (field in req.body) app_[field] = req.body[field];
+      }
+      // Editing after a rejection puts the app back in draft so it's clear
+      // it needs to be resubmitted rather than looking already-handled.
+      if (app_.status === 'changes_requested') app_.status = 'draft';
+      appStudio.touch(app_);
+      return app_;
+    });
+    if (!a) return res.status(404).json({ error: 'App not found' });
+    res.json(a);
+  })
+);
+
+app.delete(
+  '/api/apps/:id',
+  asyncRoute(async (req, res) => {
+    await updateBusiness(req, (b) => {
+      b.apps = b.apps.filter((a) => a.id !== Number(req.params.id));
+    });
+    res.status(204).end();
+  })
+);
+
+// ---- Screens ----
+app.post(
+  '/api/apps/:id/screens',
+  asyncRoute(async (req, res) => {
+    const result = await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      if (!app_) return null;
+      const screen = { id: b.nextIds.appScreens++, name: (req.body.name || '').trim() || 'New screen', blocks: [] };
+      app_.screens.push(screen);
+      if (app_.status === 'changes_requested') app_.status = 'draft';
+      appStudio.touch(app_);
+      return { app: app_, screen };
+    });
+    if (!result) return res.status(404).json({ error: 'App not found' });
+    res.status(201).json(result.screen);
+  })
+);
+
+app.patch(
+  '/api/apps/:id/screens/:screenId',
+  asyncRoute(async (req, res) => {
+    const screen = await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      const s = app_ && appStudio.findScreen(app_, req.params.screenId);
+      if (!s) return null;
+      if ('name' in req.body) s.name = req.body.name;
+      appStudio.touch(app_);
+      return s;
+    });
+    if (!screen) return res.status(404).json({ error: 'Screen not found' });
+    res.json(screen);
+  })
+);
+
+app.post(
+  '/api/apps/:id/screens/:screenId/move',
+  asyncRoute(async (req, res) => {
+    const screens = await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      if (!app_) return null;
+      const idx = app_.screens.findIndex((s) => s.id === Number(req.params.screenId));
+      if (idx === -1) return null;
+      const swapWith = req.body.direction === 'up' ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= app_.screens.length) return app_.screens;
+      [app_.screens[idx], app_.screens[swapWith]] = [app_.screens[swapWith], app_.screens[idx]];
+      appStudio.touch(app_);
+      return app_.screens;
+    });
+    if (!screens) return res.status(404).json({ error: 'App not found' });
+    res.json(screens);
+  })
+);
+
+app.delete(
+  '/api/apps/:id/screens/:screenId',
+  asyncRoute(async (req, res) => {
+    await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      if (!app_) return;
+      app_.screens = app_.screens.filter((s) => s.id !== Number(req.params.screenId));
+      appStudio.touch(app_);
+    });
+    res.status(204).end();
+  })
+);
+
+// ---- Blocks ----
+app.post(
+  '/api/apps/:id/screens/:screenId/blocks',
+  asyncRoute(async (req, res) => {
+    const result = await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      const s = app_ && appStudio.findScreen(app_, req.params.screenId);
+      if (!s) return null;
+      const type = appStudio.BLOCK_TYPES.includes(req.body.type) ? req.body.type : 'text';
+      const block = { id: b.nextIds.appBlocks++, type, text: req.body.text || '' };
+      s.blocks.push(block);
+      if (app_.status === 'changes_requested') app_.status = 'draft';
+      appStudio.touch(app_);
+      return block;
+    });
+    if (!result) return res.status(404).json({ error: 'Screen not found' });
+    res.status(201).json(result);
+  })
+);
+
+app.patch(
+  '/api/apps/:id/screens/:screenId/blocks/:blockId',
+  asyncRoute(async (req, res) => {
+    const block = await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      const s = app_ && appStudio.findScreen(app_, req.params.screenId);
+      const blk = s && appStudio.findBlock(s, req.params.blockId);
+      if (!blk) return null;
+      if ('text' in req.body) blk.text = req.body.text;
+      appStudio.touch(app_);
+      return blk;
+    });
+    if (!block) return res.status(404).json({ error: 'Block not found' });
+    res.json(block);
+  })
+);
+
+app.post(
+  '/api/apps/:id/screens/:screenId/blocks/:blockId/move',
+  asyncRoute(async (req, res) => {
+    const blocks = await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      const s = app_ && appStudio.findScreen(app_, req.params.screenId);
+      if (!s) return null;
+      const idx = s.blocks.findIndex((x) => x.id === Number(req.params.blockId));
+      if (idx === -1) return null;
+      const swapWith = req.body.direction === 'up' ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= s.blocks.length) return s.blocks;
+      [s.blocks[idx], s.blocks[swapWith]] = [s.blocks[swapWith], s.blocks[idx]];
+      appStudio.touch(app_);
+      return s.blocks;
+    });
+    if (!blocks) return res.status(404).json({ error: 'Screen not found' });
+    res.json(blocks);
+  })
+);
+
+app.delete(
+  '/api/apps/:id/screens/:screenId/blocks/:blockId',
+  asyncRoute(async (req, res) => {
+    await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      const s = app_ && appStudio.findScreen(app_, req.params.screenId);
+      if (!s) return;
+      s.blocks = s.blocks.filter((x) => x.id !== Number(req.params.blockId));
+      appStudio.touch(app_);
+    });
+    res.status(204).end();
+  })
+);
+
+// ---- Submission pipeline ----
+app.post(
+  '/api/apps/:id/submit',
+  asyncRoute(async (req, res) => {
+    const result = await updateBusiness(req, (b) => {
+      const app_ = appStudio.findApp(b, req.params.id);
+      if (!app_) return null;
+      return appStudio.submitApp(app_);
+    });
+    if (!result) return res.status(404).json({ error: 'App not found' });
+    if (!result.ok) return res.status(422).json({ error: 'Not ready to submit', issues: result.issues });
+    res.json(result.app);
+  })
+);
+
+// Lets a user force-check review status immediately instead of waiting for
+// the background tick, same pattern as "Run agents now".
+app.post(
+  '/api/apps/:id/check-review',
+  asyncRoute(async (req, res) => {
+    const app_ = await updateBusiness(req, (b) => {
+      const a = appStudio.findApp(b, req.params.id);
+      if (!a) return null;
+      appStudio.reviewApp(a);
+      return a;
+    });
+    if (!app_) return res.status(404).json({ error: 'App not found' });
+    res.json(app_);
+  })
+);
+
+app.get(
+  '/api/apps/:id/export',
+  asyncRoute(async (req, res) => {
+    const b = await currentBusiness(req);
+    const a = appStudio.findApp(b, req.params.id);
+    if (!a) return res.status(404).json({ error: 'App not found' });
+    const html = appStudio.exportAppHtml(a);
+    const slug = (a.name || 'app').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'app';
+    res.set('Content-Type', 'text/html');
+    res.set('Content-Disposition', `attachment; filename="${slug}.html"`);
+    res.send(html);
   })
 );
 

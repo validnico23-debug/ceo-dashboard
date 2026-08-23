@@ -23,15 +23,20 @@ function emptyBusinessData(name, ceoName) {
     updates: [],
     pulse: [],
     agentLog: [],
-    nextIds: { tasks: 1, updates: 1, pulse: 1, team: 1, agentLog: 1 },
+    apps: [],
+    nextIds: { tasks: 1, updates: 1, pulse: 1, team: 1, agentLog: 1, apps: 1, appScreens: 1, appBlocks: 1 },
   };
 }
 
 // Backfills fields added after a business record was first created, so older
-// records don't crash on missing agentLog/nextIds.agentLog.
+// records don't crash on missing agentLog/nextIds.agentLog/apps.
 function normalize(b) {
   if (!b.agentLog) b.agentLog = [];
   if (!b.nextIds.agentLog) b.nextIds.agentLog = 1;
+  if (!b.apps) b.apps = [];
+  if (!b.nextIds.apps) b.nextIds.apps = 1;
+  if (!b.nextIds.appScreens) b.nextIds.appScreens = 1;
+  if (!b.nextIds.appBlocks) b.nextIds.appBlocks = 1;
   return b;
 }
 
