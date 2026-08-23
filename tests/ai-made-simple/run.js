@@ -191,6 +191,42 @@ function assertEqual(actual, expected, msg) {
     assert((await page.textContent(".lesson-body")).includes("Projects"), "lesson body should mention Projects");
   });
 
+  // The full walkthrough above only ever exercised the "email" practice
+  // task. "document" and "trip" share the same guide engine but have their
+  // own question text and their own branch in generatePrompt() — neither
+  // had ever been driven end-to-end by the permanent suite, only by
+  // throwaway scripts earlier in development. Two of this app's three
+  // flagship "solid" guided experiences were effectively untested.
+  const OTHER_PRACTICE_TASKS = [
+    {
+      label: "Understand a document",
+      question: "What is the document about, or what would you like explained?",
+      answer: "A letter from my health insurance company about a claim denial",
+      expectInPrompt: ["health insurance", "plain, simple language"],
+    },
+    {
+      label: "Plan a trip",
+      question: "Where and when are you thinking of traveling?",
+      answer: "A 5-day trip to Florida in October",
+      expectInPrompt: ["Florida in October", "day-by-day plan"],
+    },
+  ];
+  for (const t of OTHER_PRACTICE_TASKS) {
+    await test(`"${t.label}" practice task asks its own question and generates a matching prompt`, async () => {
+      await goto();
+      await clickBtn("I'm new to Claude");
+      await clickBtn(t.label);
+      assertEqual((await page.textContent("h1")).trim(), t.question, `"${t.label}" should ask its own question, not a generic/reused one`);
+      await page.fill("#answer-field", t.answer);
+      await page.click("#continue-btn");
+      await clickBtn("I opened it — Next Step");
+      const prompt = await page.textContent("#prompt-text");
+      for (const phrase of t.expectInPrompt) {
+        assert(prompt.includes(phrase), `"${t.label}" prompt should include "${phrase}", got: ${prompt}`);
+      }
+    });
+  }
+
   await test("Text Size control shows all 3 options without clipping (regression guard)", async () => {
     // This must check real geometry, not just DOM text: the original bug had
     // the "Extra Large" button present in textContent but visually clipped
