@@ -3,7 +3,6 @@ const crypto = require('crypto');
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
-const FileStore = require('session-file-store')(session);
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 const { generateBriefing } = require('./ceoBrain');
@@ -12,9 +11,17 @@ const { AGENTS, runAgents } = require('./agents');
 const app = express();
 const PORT = process.env.PORT || 4173;
 
+// On Vercel the filesystem is read-only (no data/ dir to persist to), so the
+// session secret and session store must not touch disk there.
+const IS_SERVERLESS = Boolean(process.env.VERCEL);
+
 const SECRET_PATH = path.join(__dirname, 'data', 'session-secret.txt');
 function getSessionSecret() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  if (IS_SERVERLESS) {
+    console.warn('SESSION_SECRET is not set — using a per-instance secret, so sessions will not survive cold starts. Set SESSION_SECRET in your Vercel project env vars.');
+    return crypto.randomBytes(32).toString('hex');
+  }
   if (fs.existsSync(SECRET_PATH)) return fs.readFileSync(SECRET_PATH, 'utf-8').trim();
   const secret = crypto.randomBytes(32).toString('hex');
   fs.mkdirSync(path.dirname(SECRET_PATH), { recursive: true });
@@ -22,11 +29,22 @@ function getSessionSecret() {
   return secret;
 }
 
+// Postgres-backed sessions when DATABASE_URL is set (required on Vercel, since
+// there's no persistent disk for a file store); a local file store otherwise.
+function createSessionStore() {
+  if (db.pool) {
+    const PgSession = require('connect-pg-simple')(session);
+    return new PgSession({ pool: db.pool, createTableIfMissing: true });
+  }
+  const FileStore = require('session-file-store')(session);
+  return new FileStore({ path: path.join(__dirname, 'data', 'sessions'), logFn: () => {} });
+}
+
 app.set('trust proxy', 1);
 app.use(express.json());
 app.use(
   session({
-    store: new FileStore({ path: path.join(__dirname, 'data', 'sessions'), logFn: () => {} }),
+    store: createSessionStore(),
     secret: getSessionSecret(),
     resave: false,
     saveUninitialized: false,
@@ -125,6 +143,42 @@ app.get(
   })
 );
 
+// Agents normally run continuously in the background, independent of any page
+// view. There's no long-running process on Vercel to host that loop, so this
+// same tick is instead exposed below as a cron-triggered endpoint. Registered
+// ahead of the requireAuth gate below, since Vercel Cron calls it directly
+// rather than as a logged-in user — it's protected by CRON_SECRET instead,
+// which Vercel's cron scheduler sends back as the Authorization header.
+let agentsTickRunning = false;
+async function agentsTick() {
+  if (agentsTickRunning) return;
+  agentsTickRunning = true;
+  try {
+    await db.update(async (data) => {
+      for (const businessId of Object.keys(data.businesses)) {
+        await runAgents(data.businesses[businessId]);
+      }
+    });
+  } catch (err) {
+    console.error('Agent tick failed:', err.message);
+  } finally {
+    agentsTickRunning = false;
+  }
+}
+
+if (IS_SERVERLESS) {
+  app.get('/api/cron/agents-tick', asyncRoute(async (req, res) => {
+    if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    await agentsTick();
+    res.status(204).end();
+  }));
+} else {
+  setInterval(agentsTick, 60_000);
+  agentsTick();
+}
+
 // All routes below require a signed-in session and are scoped to that business.
 app.use('/api', requireAuth);
 
@@ -158,26 +212,6 @@ app.post(
     res.json({ log });
   })
 );
-
-// Agents run continuously in the background, independent of any page view.
-let agentsTickRunning = false;
-async function agentsTick() {
-  if (agentsTickRunning) return;
-  agentsTickRunning = true;
-  try {
-    await db.update(async (data) => {
-      for (const businessId of Object.keys(data.businesses)) {
-        await runAgents(data.businesses[businessId]);
-      }
-    });
-  } catch (err) {
-    console.error('Agent tick failed:', err.message);
-  } finally {
-    agentsTickRunning = false;
-  }
-}
-setInterval(agentsTick, 60_000);
-agentsTick();
 
 // ---- Briefing ----
 app.get(
@@ -410,6 +444,10 @@ app.use((err, req, res, next) => {
 // Static files served last so /api/* auth above still applies to API calls made from any page.
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => {
-  console.log(`CEO dashboard running at http://localhost:${PORT}`);
-});
+if (!IS_SERVERLESS) {
+  app.listen(PORT, () => {
+    console.log(`CEO dashboard running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

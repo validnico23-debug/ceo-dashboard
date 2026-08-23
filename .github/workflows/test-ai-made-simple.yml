@@ -1,0 +1,37 @@
+name: Test AI Made Simple
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "public/ai-made-simple/**"
+      - "tests/ai-made-simple/**"
+      - ".github/workflows/test-ai-made-simple.yml"
+  pull_request:
+    paths:
+      - "public/ai-made-simple/**"
+      - "tests/ai-made-simple/**"
+      - ".github/workflows/test-ai-made-simple.yml"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tests/ai-made-simple
+    strategy:
+      fail-fast: false
+      matrix:
+        # webkit is the engine behind Safari/iOS, a large share of this
+        # app's actual audience — worth its own CI leg, not just chromium.
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npm test
+        env:
+          PLAYWRIGHT_BROWSER: ${{ matrix.browser }}

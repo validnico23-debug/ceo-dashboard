@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "description": "A CEO dashboard that tracks tasks, cash, sales, and team activity, and generates a daily CEO briefing.",
   "main": "server.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "connect-pg-simple": "^10.0.0",
     "express": "^4.19.2",
     "express-session": "^1.19.0",
     "pg": "^8.23.0",

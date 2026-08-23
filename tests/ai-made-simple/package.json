@@ -1,0 +1,12 @@
+{
+  "name": "ai-made-simple-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "End-to-end tests for public/ai-made-simple, run against a local static server.",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}

@@ -1,0 +1,363 @@
+// End-to-end test suite for public/ai-made-simple.
+//
+// Run with: npm test   (from this directory, after `npm install`)
+//
+// Starts a plain Node static file server over the app directory, drives it
+// with a real browser via Playwright, and asserts on both DOM state and
+// real browser behavior (Cache Storage, offline mode, storage keys) rather
+// than just "did it throw."
+//
+// PLAYWRIGHT_BROWSER selects the engine: "chromium" (default), "webkit", or
+// "firefox". WebKit matters here specifically because it's the engine
+// behind Safari/iOS, a large share of this app's actual audience, and it
+// has real, historically documented differences from Chromium in Service
+// Worker and Cache Storage behavior — exactly the newest, least-proven part
+// of this app. CI runs both chromium and webkit (see the workflow matrix);
+// this sandbox's network proxy blocks Playwright's browser-download CDN,
+// so webkit can only be verified in CI, not locally — that's a real,
+// disclosed limitation, not a skipped step pretending not to exist.
+//
+// PLAYWRIGHT_CHROMIUM_PATH may be set to point at a pre-installed chromium
+// (used in the dev sandbox this suite was authored in); CI installs its own
+// via `npx playwright install --with-deps` and leaves it unset.
+
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+const playwright = require("playwright");
+const browserType = playwright[process.env.PLAYWRIGHT_BROWSER || "chromium"];
+
+const APP_DIR = path.resolve(__dirname, "../../public/ai-made-simple");
+const PORT = 8973;
+// TEST_BASE_URL lets this same suite run against a different server (e.g.
+// the real Express app in server.js, to catch server-specific serving
+// quirks) instead of the built-in static server below, which is what CI
+// uses by default since it doesn't need the rest of the app running.
+const BASE_URL = process.env.TEST_BASE_URL || `http://localhost:${PORT}/`;
+
+const MIME = {
+  ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
+  ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml",
+};
+
+function startServer() {
+  const server = http.createServer((req, res) => {
+    let reqPath = decodeURIComponent(req.url.split("?")[0]);
+    if (reqPath === "/") reqPath = "/index.html";
+    const filePath = path.join(APP_DIR, reqPath);
+    if (!filePath.startsWith(APP_DIR)) { res.writeHead(403); res.end(); return; }
+    fs.readFile(filePath, (err, data) => {
+      if (err) { res.writeHead(404); res.end("Not found"); return; }
+      res.writeHead(200, { "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream" });
+      res.end(data);
+    });
+  });
+  return new Promise((resolve) => server.listen(PORT, () => resolve(server)));
+}
+
+// --- Tiny test harness (no external test-runner dependency) ---
+const results = [];
+async function test(name, fn) {
+  try {
+    await fn();
+    results.push({ name, ok: true });
+    console.log(`  ok  - ${name}`);
+  } catch (err) {
+    results.push({ name, ok: false, err });
+    console.log(`FAIL  - ${name}`);
+    console.log(`        ${err.message}`);
+  }
+}
+function assert(cond, msg) { if (!cond) throw new Error(msg || "assertion failed"); }
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) throw new Error(`${msg || "not equal"}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+}
+
+(async () => {
+  let server = process.env.TEST_BASE_URL ? null : await startServer();
+  const isChromium = !process.env.PLAYWRIGHT_BROWSER || process.env.PLAYWRIGHT_BROWSER === "chromium";
+  const browser = await browserType.launch({
+    executablePath: (isChromium && process.env.PLAYWRIGHT_CHROMIUM_PATH) || undefined,
+  });
+  console.log(`Running against: ${browserType.name()}\n`);
+
+  const consoleErrors = [];
+  let page;
+  const freshPage = async () => {
+    if (page) await page.close();
+    page = await browser.newPage({ viewport: { width: 400, height: 900 } });
+    page.on("pageerror", (e) => consoleErrors.push(`PAGEERROR on ${page.url()}: ${e.message}`));
+    page.on("console", (msg) => { if (msg.type() === "error") consoleErrors.push(`CONSOLE on ${page.url()}: ${msg.text()}`); });
+    return page;
+  };
+  const clickBtn = (text) => page.click(`button:has-text("${text}")`);
+  const goto = () => page.goto(BASE_URL, { waitUntil: "networkidle" });
+
+  await freshPage();
+
+  await test("welcome screen renders the core promise", async () => {
+    await goto();
+    const h1 = await page.textContent("h1");
+    assertEqual(h1.trim(), "AI Made Simple");
+    assert(await page.isVisible('button:has-text("Get Started")'), "Get Started button missing");
+  });
+
+  await test("onboarding is 2 questions and completing it reaches Home", async () => {
+    await clickBtn("Get Started");
+    assert(await page.isVisible("text=How comfortable are you with Claude or AI tools?"), "Q1 missing");
+    await clickBtn("I've never used it");
+    assert(await page.isVisible("text=Would you like written instructions"), "Q2 missing");
+    await page.click('button[data-value="written"]');
+    const h1 = await page.textContent("h1");
+    assertEqual(h1.trim(), "What would you like to do?");
+  });
+
+  await test("comfort=never recommends the Beginner track on Home", async () => {
+    const beginnerCard = await page.textContent('button:has-text("I\'m new to Claude")');
+    assert(beginnerCard.includes("recommended for you"), "Beginner card should be marked recommended");
+    const advancedCard = await page.textContent('button:has-text("I already use Claude")');
+    assert(!advancedCard.includes("recommended for you"), "Advanced card should NOT be marked recommended");
+  });
+
+  await test("Beginner hub lists 5 lessons and 3 practice exercises", async () => {
+    await clickBtn("I'm new to Claude");
+    const lessonCount = await page.locator('button[data-action="openLesson"]').count();
+    assertEqual(lessonCount, 5, "expected 5 beginner lessons");
+    const practiceCount = await page.locator('button[data-action="selectPracticeTask"]').count();
+    assertEqual(practiceCount, 3, "expected 3 practice exercises");
+  });
+
+  await test("a lesson opens, Make This Simpler works, and Mark as Done persists", async () => {
+    await clickBtn("What Claude can do");
+    assert(await page.isVisible("text=What Claude can do"), "lesson title missing");
+    await clickBtn("Make This Simpler");
+    const simplified = await page.textContent(".lesson-body");
+    assert(simplified.includes("That's the main idea"), "simplified text not applied");
+    await clickBtn("Mark as Done");
+    await page.waitForTimeout(200);
+    const doneChoice = await page.locator('button[data-lesson="what"]').first();
+    const cls = await doneChoice.getAttribute("class");
+    assert(cls.includes("done"), "lesson should show as done after completing");
+  });
+
+  await test("safety warning appears for sensitive input and disappears when removed", async () => {
+    await clickBtn("Write an email");
+    await page.fill("#answer-field", "my password is hunter2, please help write this");
+    assert(await page.isVisible("text=A friendly reminder"), "safety warning should show for 'password'");
+    await page.fill("#answer-field", "Asking my landlord to fix the heater");
+    await page.waitForTimeout(50);
+    assert(!(await page.isVisible("text=A friendly reminder")), "safety warning should clear once sensitive text is removed");
+  });
+
+  await test("full practice walkthrough: submit -> 4 guide steps -> success -> save", async () => {
+    await page.click("#continue-btn");
+    assertEqual((await page.textContent(".progress-label")).trim(), "Step 1 of 4");
+
+    await clickBtn("I opened it — Next Step");
+    assertEqual((await page.textContent(".progress-label")).trim(), "Step 2 of 4");
+    const promptBefore = await page.textContent("#prompt-text");
+    assert(promptBefore.includes("Asking my landlord to fix the heater"), "prompt should include the user's answer");
+
+    await page.click('button:has-text("Friendlier")');
+    const promptAfter = await page.textContent("#prompt-text");
+    assert(promptAfter.includes("warm and friendly"), "tone chip should regenerate the prompt with the tone line");
+
+    await page.click("#copy-btn");
+    await page.waitForTimeout(150);
+    assert((await page.textContent("#copy-btn")).includes("Copied"), "copy button should confirm success");
+
+    await clickBtn("Next Step");
+    assertEqual((await page.textContent(".progress-label")).trim(), "Step 3 of 4");
+    await clickBtn("Next Step");
+    assertEqual((await page.textContent(".progress-label")).trim(), "Step 4 of 4");
+
+    await clickBtn("It Worked");
+    assert(await page.isVisible("text=Great job"), "success screen should appear");
+
+    await clickBtn("Save This Prompt");
+    await page.waitForTimeout(150);
+    await page.click('button[aria-label="Account and settings"]');
+    await clickBtn("Saved Prompts");
+    assert(await page.isVisible("text=Write an email"), "saved prompt should show the task label");
+    assert((await page.textContent(".prompt-box")).includes("Asking my landlord to fix the heater"), "saved prompt should include the original answer");
+  });
+
+  await test("Advanced hub has 6 lessons and a lesson opens with real content", async () => {
+    await goto();
+    await clickBtn("I already use Claude");
+    const count = await page.locator('button[data-action="openLesson"]').count();
+    assertEqual(count, 6, "expected 6 advanced lessons");
+    await clickBtn("Use Projects to keep your work organized");
+    assert((await page.textContent(".lesson-body")).includes("Projects"), "lesson body should mention Projects");
+  });
+
+  // The full walkthrough above only ever exercised the "email" practice
+  // task. "document" and "trip" share the same guide engine but have their
+  // own question text and their own branch in generatePrompt() — neither
+  // had ever been driven end-to-end by the permanent suite, only by
+  // throwaway scripts earlier in development. Two of this app's three
+  // flagship "solid" guided experiences were effectively untested.
+  const OTHER_PRACTICE_TASKS = [
+    {
+      label: "Understand a document",
+      question: "What is the document about, or what would you like explained?",
+      answer: "A letter from my health insurance company about a claim denial",
+      expectInPrompt: ["health insurance", "plain, simple language"],
+    },
+    {
+      label: "Plan a trip",
+      question: "Where and when are you thinking of traveling?",
+      answer: "A 5-day trip to Florida in October",
+      expectInPrompt: ["Florida in October", "day-by-day plan"],
+    },
+  ];
+  for (const t of OTHER_PRACTICE_TASKS) {
+    await test(`"${t.label}" practice task asks its own question and generates a matching prompt`, async () => {
+      await goto();
+      await clickBtn("I'm new to Claude");
+      await clickBtn(t.label);
+      assertEqual((await page.textContent("h1")).trim(), t.question, `"${t.label}" should ask its own question, not a generic/reused one`);
+      await page.fill("#answer-field", t.answer);
+      await page.click("#continue-btn");
+      await clickBtn("I opened it — Next Step");
+      const prompt = await page.textContent("#prompt-text");
+      for (const phrase of t.expectInPrompt) {
+        assert(prompt.includes(phrase), `"${t.label}" prompt should include "${phrase}", got: ${prompt}`);
+      }
+    });
+  }
+
+  await test("Text Size control shows all 3 options without clipping (regression guard)", async () => {
+    // This must check real geometry, not just DOM text: the original bug had
+    // the "Extra Large" button present in textContent but visually clipped
+    // out of view by the segmented control's overflow:hidden, so a
+    // text-presence check alone would never have caught it.
+    await page.click('button[aria-label="Account and settings"]');
+    const container = await page.locator(".segmented").first();
+    const containerBox = await container.boundingBox();
+    assert(containerBox, "segmented control should have a bounding box");
+    const buttons = await page.locator(".segmented button").all();
+    assertEqual(buttons.length, 3, "expected exactly 3 text-size options");
+    for (const btn of buttons) {
+      const label = (await btn.textContent()).trim();
+      const box = await btn.boundingBox();
+      assert(box, `"${label}" button should have a bounding box`);
+      assert(box.width > 15, `"${label}" button is collapsed to near-zero width (${box.width}px) — likely clipped`);
+      assert(
+        box.x >= containerBox.x - 1 && box.x + box.width <= containerBox.x + containerBox.width + 1,
+        `"${label}" button (x:${box.x}, w:${box.width}) falls outside the segmented container (x:${containerBox.x}, w:${containerBox.width}) — clipped by overflow:hidden`
+      );
+    }
+    await page.click('button[data-size="xlarge"]');
+    assertEqual(await page.getAttribute("html", "data-textsize"), "xlarge");
+  });
+
+  await test("High Contrast toggle applies and persists across reload", async () => {
+    await page.click(".switch >> nth=0");
+    assert(await page.evaluate(() => document.body.classList.contains("high-contrast")), "high-contrast class should be applied");
+    await goto();
+    assert(await page.evaluate(() => document.body.classList.contains("high-contrast")), "high-contrast should persist after reload");
+  });
+
+  await test("Voice Instructions toggle is free (no lock/premium badge)", async () => {
+    await page.click('button[aria-label="Account and settings"]');
+    const voiceRow = await page.textContent(".card:has-text('Voice Instructions')");
+    assert(!voiceRow.includes("Premium"), "Voice Instructions should not show a Premium badge");
+  });
+
+  await test("accessibility toggles have real accessible names, not just a visual label", async () => {
+    // These are icon-only switches (no visible text inside the control
+    // itself) — without an aria-label a screen reader announces them as
+    // unlabeled checkboxes, which defeats the point of an accessibility
+    // settings screen.
+    const contrastLabel = await page.getAttribute('input[data-action="toggleContrast"]', "aria-label");
+    const voiceLabel = await page.getAttribute('input[data-action="toggleVoice"]', "aria-label");
+    assert(contrastLabel && contrastLabel.trim().length > 0, "High Contrast checkbox has no accessible name");
+    assert(voiceLabel && voiceLabel.trim().length > 0, "Voice Instructions checkbox has no accessible name");
+  });
+
+  await test("Reset Demo Data clears both current and legacy storage keys", async () => {
+    await page.evaluate(() => localStorage.setItem("aims_state_v1", JSON.stringify({ onboarded: true })));
+    page.once("dialog", (d) => d.accept());
+    await page.click('button:has-text("Reset Demo Data")');
+    await page.waitForTimeout(150);
+    const keys = await page.evaluate(() => ({ v1: localStorage.getItem("aims_state_v1"), v2: localStorage.getItem("aims_state_v2") }));
+    assertEqual(keys.v1, null, "legacy v1 key should be cleared");
+    assertEqual(keys.v2, null, "v2 key should be cleared");
+  });
+
+  await test("PWA: manifest is valid and linked", async () => {
+    await goto();
+    const href = await page.evaluate(() => document.querySelector('link[rel="manifest"]')?.href);
+    assert(href, "manifest link missing from <head>");
+    const manifest = await page.evaluate(async (u) => (await fetch(u)).json(), href);
+    assertEqual(manifest.display, "standalone");
+    assert(manifest.icons.length >= 4, "expected at least 4 icons in manifest");
+  });
+
+  await test("PWA: service worker registers, activates, and caches the app shell", async () => {
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 5000 }).catch(() => {});
+    const reg = await page.evaluate(async () => {
+      const r = await navigator.serviceWorker.getRegistration();
+      if (!r) return null;
+      await navigator.serviceWorker.ready;
+      return { active: !!r.active };
+    });
+    assert(reg && reg.active, "service worker should be registered and active");
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(400);
+    const cached = await page.evaluate(async () => {
+      const keys = await caches.keys();
+      if (!keys.length) return [];
+      const cache = await caches.open(keys[0]);
+      return (await cache.keys()).map((r) => new URL(r.url).pathname);
+    });
+    // Match by suffix, not exact path: this suite also runs against the real
+    // Express app (via TEST_BASE_URL) where the app is deployed under
+    // /ai-made-simple/ rather than site root, and the cache correctly
+    // reflects whatever path it's actually served from.
+    for (const f of ["/index.html", "/app.js", "/styles.css", "/manifest.json"]) {
+      assert(cached.some((c) => c.endsWith(f)), `expected a cached URL ending in ${f}, got: ${cached.join(", ")}`);
+    }
+  });
+
+  await test("PWA: app still renders with the network genuinely unreachable", async () => {
+    // Deliberately not using context.setOffline(true) here: it's a browser-
+    // level flag each engine's automation driver implements differently
+    // (WebKit's driver throws "encountered an internal error" on reload
+    // under it, independent of whether the app/service-worker logic is
+    // correct). Instead, actually stop the server — a real closed TCP
+    // listener is unambiguous and identical across every engine, which is
+    // the more faithful test of "does this genuinely work with no network,"
+    // the actual claim being tested.
+    if (!server) {
+      console.log("        (skipped: only supported against the built-in server, not TEST_BASE_URL)");
+      return;
+    }
+    await new Promise((resolve) => server.close(resolve));
+    let reloadError = null;
+    try {
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 5000 });
+    } catch (e) {
+      reloadError = e;
+    }
+    const title = reloadError ? null : await page.title();
+    const appLength = reloadError ? 0 : await page.evaluate(() => document.getElementById("app")?.innerHTML.length || 0);
+    await new Promise((resolve) => startServer().then((s) => { server = s; resolve(); }));
+    if (reloadError) throw new Error(`page.reload() failed with the server stopped: ${reloadError.message}`);
+    assertEqual(title, "AI Made Simple");
+    assert(appLength > 100, "app root should have rendered real content with the server unreachable");
+  });
+
+  await page.close();
+  await browser.close();
+  if (server) await new Promise((resolve) => server.close(resolve));
+
+  const failed = results.filter((r) => !r.ok);
+  console.log(`\n${results.length - failed.length}/${results.length} tests passed.`);
+  if (consoleErrors.length) {
+    console.log(`\n${consoleErrors.length} browser console/page error(s) were captured during the run:`);
+    consoleErrors.forEach((e) => console.log("  " + e));
+  }
+  if (failed.length || consoleErrors.length) process.exit(1);
+})();
