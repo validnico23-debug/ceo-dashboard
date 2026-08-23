@@ -1,8 +1,8 @@
 /* ---------- Design tokens ---------- */
 :root {
-  --blue-dark: #16405f;
-  --blue: #2f6fb0;
-  --blue-light: #e9f2fb;
+  --purple-dark: #3f2a63;
+  --purple: #6b3fc4;
+  --purple-light: #f1ecfb;
   --green: #2f9e6e;
   --green-light: #e6f6ee;
   --white: #ffffff;
@@ -44,8 +44,8 @@ body.high-contrast {
   --text-muted: #202020;
   --bg: #ffffff;
   --border: #000000;
-  --blue: #0a3d78;
-  --blue-light: #ffffff;
+  --purple: #3a1a70;
+  --purple-light: #ffffff;
   --green: #146b3a;
   --green-light: #ffffff;
 }
@@ -88,13 +88,13 @@ button { font-family: inherit; }
 .top-bar .brand {
   font-weight: 700;
   font-size: 1.05rem;
-  color: var(--blue-dark);
+  color: var(--purple-dark);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .icon-btn {
-  background: var(--blue-light);
+  background: var(--purple-light);
   border: none;
   border-radius: 50%;
   width: 44px;
@@ -103,7 +103,7 @@ button { font-family: inherit; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--blue-dark);
+  color: var(--purple-dark);
   flex-shrink: 0;
 }
 .icon-btn:hover { filter: brightness(0.96); }
@@ -128,11 +128,11 @@ button { font-family: inherit; }
   transition: transform 0.05s ease, filter 0.15s ease;
 }
 .btn:active { transform: scale(0.98); }
-.btn-primary { background: var(--blue); color: var(--white); }
+.btn-primary { background: var(--purple); color: var(--white); }
 .btn-primary:hover { filter: brightness(1.06); }
-.btn-secondary { background: var(--white); color: var(--blue-dark); border: 2px solid var(--blue); }
+.btn-secondary { background: var(--white); color: var(--purple-dark); border: 2px solid var(--purple); }
 .btn-green { background: var(--green); color: var(--white); }
-.btn-ghost { background: transparent; color: var(--blue-dark); border: 2px solid transparent; }
+.btn-ghost { background: transparent; color: var(--purple-dark); border: 2px solid transparent; }
 .btn-danger-outline { background: var(--white); color: var(--danger); border: 2px solid var(--danger); }
 .btn-block { margin-top: 12px; }
 .btn-sm { padding: 12px 16px; min-height: 44px; font-size: 0.95rem; width: auto; }
@@ -141,7 +141,7 @@ button { font-family: inherit; }
 .link-btn {
   background: none;
   border: none;
-  color: var(--blue);
+  color: var(--purple);
   font-weight: 600;
   cursor: pointer;
   padding: 10px 4px;
@@ -158,8 +158,8 @@ button { font-family: inherit; }
   color: var(--green);
   margin-bottom: 8px;
 }
-h1.page-title { font-size: 1.8rem; color: var(--blue-dark); line-height: 1.25; }
-h2.section-title { font-size: 1.35rem; color: var(--blue-dark); }
+h1.page-title { font-size: 1.8rem; color: var(--purple-dark); line-height: 1.25; }
+h2.section-title { font-size: 1.35rem; color: var(--purple-dark); }
 .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 20px; }
 .muted { color: var(--text-muted); }
 .center { text-align: center; }
@@ -188,10 +188,10 @@ h2.section-title { font-size: 1.35rem; color: var(--blue-dark); }
   font-weight: 600;
   color: var(--text);
 }
-.choice:hover { border-color: var(--blue); background: var(--blue-light); }
+.choice:hover { border-color: var(--purple); background: var(--purple-light); }
 .choice .choice-icon {
   width: 46px; height: 46px; border-radius: 12px;
-  background: var(--blue-light); color: var(--blue-dark);
+  background: var(--purple-light); color: var(--purple-dark);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .choice .choice-text { flex: 1; }
@@ -200,7 +200,7 @@ h2.section-title { font-size: 1.35rem; color: var(--blue-dark); }
 .choice.big { padding: 26px 20px; }
 .choice.big .choice-icon { width: 58px; height: 58px; }
 .choice.done { border-color: var(--green); }
-.choice.selected { border-color: var(--blue); background: var(--blue-light); }
+.choice.selected { border-color: var(--purple); background: var(--purple-light); }
 
 /* ---------- Cards ---------- */
 .card {
@@ -214,7 +214,7 @@ h2.section-title { font-size: 1.35rem; color: var(--blue-dark); }
 .card-tight { padding: 16px; }
 
 .hero {
-  background: linear-gradient(180deg, var(--blue-light), var(--bg));
+  background: linear-gradient(180deg, var(--purple-light), var(--bg));
   padding: 40px 24px;
   text-align: center;
   min-height: 100vh;
@@ -225,15 +225,15 @@ h2.section-title { font-size: 1.35rem; color: var(--blue-dark); }
 }
 .hero .sparkle-badge {
   width: 84px; height: 84px; border-radius: 50%;
-  background: var(--blue); color: var(--white);
+  background: var(--purple); color: var(--white);
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 8px;
 }
-.hero h1 { font-size: 2rem; color: var(--blue-dark); }
+.hero h1 { font-size: 2rem; color: var(--purple-dark); }
 .hero .promise { font-size: 1.15rem; color: var(--text-muted); max-width: 420px; margin: 0 auto; }
 
 /* ---------- Textarea / inputs ---------- */
-.field-label { font-weight: 700; margin-bottom: 8px; display: block; color: var(--blue-dark); }
+.field-label { font-weight: 700; margin-bottom: 8px; display: block; color: var(--purple-dark); }
 textarea, input[type=text] {
   width: 100%;
   font-size: 1.05rem;
@@ -246,7 +246,7 @@ textarea, input[type=text] {
   background: var(--white);
   color: var(--text);
 }
-textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); border-color: var(--blue); }
+textarea:focus, input[type=text]:focus { outline: 3px solid var(--purple-light); border-color: var(--purple); }
 
 .answer-row { position: relative; }
 .mic-btn {
@@ -256,7 +256,7 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
   width: 46px; height: 46px;
   border-radius: 50%;
   border: none;
-  background: var(--blue);
+  background: var(--purple);
   color: white;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
@@ -283,7 +283,7 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
 /* ---------- Recommendation ---------- */
 .tool-badge {
   display: inline-flex; align-items: center; gap: 10px;
-  background: var(--green-light); color: var(--blue-dark);
+  background: var(--green-light); color: var(--purple-dark);
   padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 1rem;
   margin-bottom: 14px;
 }
@@ -291,8 +291,8 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
 
 /* ---------- Prompt box ---------- */
 .prompt-box {
-  background: var(--blue-light);
-  border: 1.5px dashed var(--blue);
+  background: var(--purple-light);
+  border: 1.5px dashed var(--purple);
   border-radius: var(--radius-md);
   padding: 18px;
   font-size: 1.02rem;
@@ -302,8 +302,8 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
 }
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .chip {
-  border: 1.5px solid var(--blue);
-  color: var(--blue-dark);
+  border: 1.5px solid var(--purple);
+  color: var(--purple-dark);
   background: var(--white);
   padding: 8px 14px;
   border-radius: 999px;
@@ -340,9 +340,9 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
 .setting-row.stack { flex-direction: column; align-items: stretch; }
 .setting-title { font-weight: 700; }
 .setting-sub { color: var(--text-muted); font-size: 0.9rem; margin-top: 2px; }
-.segmented { display: flex; border: 2px solid var(--blue); border-radius: 999px; overflow: hidden; width: 100%; margin-top: 12px; }
-.segmented button { flex: 1; border: none; background: var(--white); color: var(--blue-dark); padding: 10px 6px; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
-.segmented button.active { background: var(--blue); color: white; }
+.segmented { display: flex; border: 2px solid var(--purple); border-radius: 999px; overflow: hidden; width: 100%; margin-top: 12px; }
+.segmented button { flex: 1; border: none; background: var(--white); color: var(--purple-dark); padding: 10px 6px; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+.segmented button.active { background: var(--purple); color: white; }
 .switch { position: relative; width: 52px; height: 30px; flex-shrink: 0; }
 .switch input { display: none; }
 .switch .track { position: absolute; inset: 0; background: var(--border); border-radius: 999px; cursor: pointer; transition: background 0.15s ease; }
@@ -356,7 +356,7 @@ textarea:focus, input[type=text]:focus { outline: 3px solid var(--blue-light); b
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%) translateY(20px);
-  background: var(--blue-dark);
+  background: var(--purple-dark);
   color: white;
   padding: 14px 22px;
   border-radius: 999px;
