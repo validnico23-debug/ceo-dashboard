@@ -899,7 +899,40 @@ a.btn {
   color: var(--text-dim);
 }
 
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; }
 .icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+.drag-handle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: var(--text-dim);
+  cursor: grab;
+}
+
+.drag-handle:hover { color: var(--accent); }
+
+.screen-block,
+.content-block-row {
+  transition: opacity 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.screen-block.dragging,
+.content-block-row.dragging {
+  opacity: 0.4;
+}
+
+.screen-block.drag-over-before,
+.content-block-row.drag-over-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.screen-block.drag-over-after,
+.content-block-row.drag-over-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
 
 /* Phone preview */
 .phone-frame {

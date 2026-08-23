@@ -43,6 +43,11 @@ function fmtRelative(iso) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+const ICONS = {
+  close: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>',
+};
+
 const EMOJI_SUGGESTIONS = ['📱', '🚀', '💡', '🎯', '🛒', '📸', '🎵', '💬', '🏋️', '🍔', '🧾', '✈️', '🐾', '📚', '🎮'];
 const STATUS_LABELS = { draft: 'draft', in_review: 'in review', changes_requested: 'changes requested', published: 'published' };
 
@@ -206,15 +211,16 @@ function renderScreens() {
     wrap.innerHTML = '<div class="empty-note">No screens yet — add your first one below.</div>';
     return;
   }
-  currentApp.screens.forEach((screen, sIdx) => {
+  currentApp.screens.forEach((screen) => {
     const div = document.createElement('div');
     div.className = 'screen-block';
+    div.draggable = true;
+    div.dataset.id = screen.id;
     div.innerHTML = `
       <div class="screen-block-head">
+        <span class="drag-handle" title="Drag to reorder">${ICONS.grip}</span>
         <input type="text" value="${escapeHtml(screen.name)}" data-screen="${screen.id}" class="screen-name-input" />
-        <button class="icon-btn" data-action="screen-up" data-screen="${screen.id}" ${sIdx === 0 ? 'disabled' : ''}>↑</button>
-        <button class="icon-btn" data-action="screen-down" data-screen="${screen.id}" ${sIdx === currentApp.screens.length - 1 ? 'disabled' : ''}>↓</button>
-        <button class="icon-btn" data-action="screen-delete" data-screen="${screen.id}">✕</button>
+        <button class="icon-btn" data-action="screen-delete" data-screen="${screen.id}" title="Delete screen">${ICONS.close}</button>
       </div>
       <div class="content-blocks" data-blocks-for="${screen.id}"></div>
       <form class="add-block-form" data-add-block-for="${screen.id}">
@@ -230,10 +236,13 @@ function renderScreens() {
     if (screen.blocks.length === 0) {
       blocksWrap.innerHTML = '<div class="empty-note">No content yet.</div>';
     } else {
-      screen.blocks.forEach((block, bIdx) => {
+      screen.blocks.forEach((block) => {
         const row = document.createElement('div');
         row.className = 'content-block-row';
+        row.draggable = true;
+        row.dataset.id = block.id;
         row.innerHTML = `
+          <span class="drag-handle" title="Drag to reorder">${ICONS.grip}</span>
           <span class="type-tag">${BLOCK_TYPE_LABELS[block.type] || block.type}</span>
           <input type="text" value="${escapeHtml(block.text)}" data-block="${block.id}" data-screen="${screen.id}" class="block-text-input" />
           ${
@@ -241,9 +250,7 @@ function renderScreens() {
               ? `<select class="link-to-select block-link-select" data-block="${block.id}" data-screen="${screen.id}">${screenOptions(currentApp, block.linkTo, screen.id)}</select>`
               : ''
           }
-          <button class="icon-btn" data-action="block-up" data-screen="${screen.id}" data-block="${block.id}" ${bIdx === 0 ? 'disabled' : ''}>↑</button>
-          <button class="icon-btn" data-action="block-down" data-screen="${screen.id}" data-block="${block.id}" ${bIdx === screen.blocks.length - 1 ? 'disabled' : ''}>↓</button>
-          <button class="icon-btn" data-action="block-delete" data-screen="${screen.id}" data-block="${block.id}">✕</button>
+          <button class="icon-btn" data-action="block-delete" data-screen="${screen.id}" data-block="${block.id}" title="Delete">${ICONS.close}</button>
         `;
         blocksWrap.appendChild(row);
       });
@@ -344,6 +351,7 @@ function wireStaticEvents() {
   document.getElementById('screens-editor').addEventListener('submit', handleAddBlockSubmit);
   document.getElementById('screens-editor').addEventListener('blur', handleScreensBlur, true);
   document.getElementById('screens-editor').addEventListener('change', handleScreensChange);
+  wireScreensDragAndDrop();
 
   document.getElementById('submit-btn').addEventListener('click', handleSubmitForReview);
   document.getElementById('check-review-btn').addEventListener('click', handleCheckReview);
@@ -358,19 +366,9 @@ async function handleScreensClick(e) {
   const btn = e.target.closest('button[data-action]');
   if (!btn) return;
   const { action, screen, block } = btn.dataset;
-  if (action === 'screen-up' || action === 'screen-down') {
-    await api(`/api/apps/${currentApp.id}/screens/${screen}/move`, {
-      method: 'POST',
-      body: JSON.stringify({ direction: action === 'screen-up' ? 'up' : 'down' }),
-    });
-  } else if (action === 'screen-delete') {
+  if (action === 'screen-delete') {
     if (!confirm('Delete this screen?')) return;
     await api(`/api/apps/${currentApp.id}/screens/${screen}`, { method: 'DELETE' });
-  } else if (action === 'block-up' || action === 'block-down') {
-    await api(`/api/apps/${currentApp.id}/screens/${screen}/blocks/${block}/move`, {
-      method: 'POST',
-      body: JSON.stringify({ direction: action === 'block-up' ? 'up' : 'down' }),
-    });
   } else if (action === 'block-delete') {
     await api(`/api/apps/${currentApp.id}/screens/${screen}/blocks/${block}`, { method: 'DELETE' });
   } else {
@@ -381,6 +379,84 @@ async function handleScreensClick(e) {
   renderPreview();
   renderStatus();
   await refreshListEntry();
+}
+
+// Drag-and-drop reordering via native HTML5 DnD. Both screens and blocks
+// live in the same #screens-editor container, so each wiring call carries a
+// guard that lets exactly one of them claim a given drag gesture: a drag
+// starting inside a .content-block-row is always a block reorder (blocks
+// are the innermost draggable), so the screen-level wiring backs off
+// whenever the gesture started inside one.
+function wireDragReorder(container, itemSelector, guard, onDrop) {
+  let draggedEl = null;
+  container.addEventListener('dragstart', (e) => {
+    if (guard && !guard(e)) return;
+    const item = e.target.closest(itemSelector);
+    if (!item) return;
+    draggedEl = item;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(item.dataset.id));
+    item.classList.add('dragging');
+  });
+  container.addEventListener('dragend', () => {
+    if (draggedEl) draggedEl.classList.remove('dragging');
+    draggedEl = null;
+  });
+  container.addEventListener('dragover', (e) => {
+    if (!draggedEl) return;
+    const item = e.target.closest(itemSelector);
+    if (!item || item === draggedEl || item.parentElement !== draggedEl.parentElement) return;
+    e.preventDefault();
+    const rect = item.getBoundingClientRect();
+    const before = e.clientY - rect.top < rect.height / 2;
+    item.classList.toggle('drag-over-before', before);
+    item.classList.toggle('drag-over-after', !before);
+  });
+  container.addEventListener('dragleave', (e) => {
+    const item = e.target.closest(itemSelector);
+    if (item) item.classList.remove('drag-over-before', 'drag-over-after');
+  });
+  container.addEventListener('drop', async (e) => {
+    if (!draggedEl) return;
+    const item = e.target.closest(itemSelector);
+    if (!item || item === draggedEl || item.parentElement !== draggedEl.parentElement) return;
+    e.preventDefault();
+    const before = item.classList.contains('drag-over-before');
+    item.classList.remove('drag-over-before', 'drag-over-after');
+    const siblings = Array.from(draggedEl.parentElement.querySelectorAll(`:scope > ${itemSelector}`));
+    const order = siblings.map((el) => el.dataset.id);
+    const filtered = order.filter((id) => id !== draggedEl.dataset.id);
+    const targetIdx = filtered.indexOf(item.dataset.id);
+    filtered.splice(before ? targetIdx : targetIdx + 1, 0, draggedEl.dataset.id);
+    const screenId = draggedEl.closest('[data-blocks-for]')?.dataset.blocksFor;
+    await onDrop(filtered, screenId);
+  });
+}
+
+function wireScreensDragAndDrop() {
+  const container = document.getElementById('screens-editor');
+
+  wireDragReorder(
+    container,
+    '.screen-block',
+    (e) => !e.target.closest('.content-block-row'),
+    async (order) => {
+      await api(`/api/apps/${currentApp.id}/screens/reorder`, { method: 'POST', body: JSON.stringify({ order }) });
+      currentApp = await api(`/api/apps/${currentApp.id}`);
+      renderScreens();
+      renderPreview();
+      renderStatus();
+      await refreshListEntry();
+    }
+  );
+
+  wireDragReorder(container, '.content-block-row', null, async (order, screenId) => {
+    await api(`/api/apps/${currentApp.id}/screens/${screenId}/blocks/reorder`, { method: 'POST', body: JSON.stringify({ order }) });
+    currentApp = await api(`/api/apps/${currentApp.id}`);
+    renderScreens();
+    renderPreview();
+    renderStatus();
+  });
 }
 
 async function handleAddBlockSubmit(e) {

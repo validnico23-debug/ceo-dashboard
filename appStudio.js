@@ -155,6 +155,29 @@ function sanitizeLinkTo(app, linkTo) {
   return target ? target.id : null;
 }
 
+// Reorders screens/blocks to match a drag-and-drop drop result. Only
+// accepts orderIds that are exactly a permutation of the current ids, so a
+// stale or tampered order can never drop or duplicate an item.
+function reorderScreens(app, orderIds) {
+  const ids = (orderIds || []).map(Number);
+  const currentIds = app.screens.map((s) => s.id);
+  if (ids.length !== currentIds.length || !currentIds.every((id) => ids.includes(id))) return false;
+  const byId = new Map(app.screens.map((s) => [s.id, s]));
+  app.screens = ids.map((id) => byId.get(id));
+  touch(app);
+  return true;
+}
+
+function reorderBlocks(app, screen, orderIds) {
+  const ids = (orderIds || []).map(Number);
+  const currentIds = screen.blocks.map((b) => b.id);
+  if (ids.length !== currentIds.length || !currentIds.every((id) => ids.includes(id))) return false;
+  const byId = new Map(screen.blocks.map((b) => [b.id, b]));
+  screen.blocks = ids.map((id) => byId.get(id));
+  touch(app);
+  return true;
+}
+
 function touch(app) {
   app.updatedAt = new Date().toISOString();
 }
@@ -662,6 +685,8 @@ module.exports = {
   findScreen,
   findBlock,
   sanitizeLinkTo,
+  reorderScreens,
+  reorderBlocks,
   touch,
   logEntry,
   validateForSubmission,

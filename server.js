@@ -604,22 +604,20 @@ app.patch(
   })
 );
 
+// Drag-and-drop reordering: the client sends the full new id order after a
+// drop, and the server accepts it only if it's an exact permutation of the
+// current screens (see appStudio.reorderScreens).
 app.post(
-  '/api/apps/:id/screens/:screenId/move',
+  '/api/apps/:id/screens/reorder',
   asyncRoute(async (req, res) => {
-    const screens = await updateBusiness(req, (b) => {
+    const result = await updateBusiness(req, (b) => {
       const app_ = appStudio.findApp(b, req.params.id);
       if (!app_) return null;
-      const idx = app_.screens.findIndex((s) => s.id === Number(req.params.screenId));
-      if (idx === -1) return null;
-      const swapWith = req.body.direction === 'up' ? idx - 1 : idx + 1;
-      if (swapWith < 0 || swapWith >= app_.screens.length) return app_.screens;
-      [app_.screens[idx], app_.screens[swapWith]] = [app_.screens[swapWith], app_.screens[idx]];
-      appStudio.touch(app_);
-      return app_.screens;
+      return appStudio.reorderScreens(app_, req.body.order) ? app_.screens : 'invalid';
     });
-    if (!screens) return res.status(404).json({ error: 'App not found' });
-    res.json(screens);
+    if (!result) return res.status(404).json({ error: 'App not found' });
+    if (result === 'invalid') return res.status(400).json({ error: 'Invalid order' });
+    res.json(result);
   })
 );
 
@@ -676,22 +674,17 @@ app.patch(
 );
 
 app.post(
-  '/api/apps/:id/screens/:screenId/blocks/:blockId/move',
+  '/api/apps/:id/screens/:screenId/blocks/reorder',
   asyncRoute(async (req, res) => {
-    const blocks = await updateBusiness(req, (b) => {
+    const result = await updateBusiness(req, (b) => {
       const app_ = appStudio.findApp(b, req.params.id);
       const s = app_ && appStudio.findScreen(app_, req.params.screenId);
       if (!s) return null;
-      const idx = s.blocks.findIndex((x) => x.id === Number(req.params.blockId));
-      if (idx === -1) return null;
-      const swapWith = req.body.direction === 'up' ? idx - 1 : idx + 1;
-      if (swapWith < 0 || swapWith >= s.blocks.length) return s.blocks;
-      [s.blocks[idx], s.blocks[swapWith]] = [s.blocks[swapWith], s.blocks[idx]];
-      appStudio.touch(app_);
-      return s.blocks;
+      return appStudio.reorderBlocks(app_, s, req.body.order) ? s.blocks : 'invalid';
     });
-    if (!blocks) return res.status(404).json({ error: 'Screen not found' });
-    res.json(blocks);
+    if (!result) return res.status(404).json({ error: 'Screen not found' });
+    if (result === 'invalid') return res.status(400).json({ error: 'Invalid order' });
+    res.json(result);
   })
 );
 
