@@ -1165,6 +1165,42 @@ a.btn {
   margin-top: 10px;
 }
 
+.screenshots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px;
+}
+
+.screenshot-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.screenshot-tile canvas {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.screenshot-tile .label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.screenshot-tile a.btn.small {
+  padding: 3px 8px;
+  font-size: 10.5px;
+}
+
 .link-to-select {
   font-size: 11.5px;
   padding: 5px 6px;

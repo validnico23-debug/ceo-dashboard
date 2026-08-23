@@ -581,6 +581,211 @@ function renderPreview() {
       renderPreview();
     });
   });
+
+  renderScreenshots();
+}
+
+// ---- Screenshots ----
+// Renders each screen to a canvas at real App Store resolution (1290×2796,
+// the iPhone 6.7" size Apple requires) so a screenshot generated here is
+// actually usable in a real submission, not just a preview thumbnail.
+
+const SHOT_W = 1290;
+const SHOT_H = 2796;
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 8) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  let line = '';
+  let lines = 0;
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, y);
+      line = word;
+      y += lineHeight;
+      lines += 1;
+      if (lines >= maxLines) {
+        ctx.fillText(line + '…', x, y);
+        return y + lineHeight;
+      }
+    } else {
+      line = test;
+    }
+  }
+  if (line) {
+    ctx.fillText(line, x, y);
+    y += lineHeight;
+  }
+  return y;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawScreenshot(canvas, app, screen) {
+  canvas.width = SHOT_W;
+  canvas.height = SHOT_H;
+  const ctx = canvas.getContext('2d');
+  const pad = 72;
+
+  ctx.fillStyle = '#f6f7fa';
+  ctx.fillRect(0, 0, SHOT_W, SHOT_H);
+
+  const headerH = 300;
+  ctx.fillStyle = app.color || '#4f46e5';
+  ctx.fillRect(0, 0, SHOT_W, headerH);
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = '72px sans-serif';
+  ctx.fillText(app.icon || '📱', pad, 170);
+  ctx.font = '700 52px sans-serif';
+  ctx.fillText(app.name || 'My App', pad + 96, 150);
+  ctx.font = '36px sans-serif';
+  ctx.globalAlpha = 0.85;
+  ctx.fillText(app.subtitle || '', pad + 96, 200);
+  ctx.globalAlpha = 1;
+
+  const tabH = 130;
+  let y = headerH + 90;
+  const contentW = SHOT_W - pad * 2;
+
+  for (const block of screen.blocks) {
+    if (y > SHOT_H - tabH - 60) break;
+    switch (block.type) {
+      case 'heading':
+        ctx.fillStyle = '#14161c';
+        ctx.font = '700 56px sans-serif';
+        y = wrapText(ctx, block.text, pad, y, contentW, 66, 2) + 20;
+        break;
+      case 'text':
+        ctx.fillStyle = '#333333';
+        ctx.font = '40px sans-serif';
+        y = wrapText(ctx, block.text, pad, y, contentW, 52, 4) + 16;
+        break;
+      case 'button': {
+        const h = 108;
+        ctx.fillStyle = app.color || '#4f46e5';
+        roundRect(ctx, pad, y, contentW, h, 18);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 42px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(block.text, SHOT_W / 2, y + h / 2 + 14);
+        ctx.textAlign = 'left';
+        y += h + 24;
+        break;
+      }
+      case 'image':
+        ctx.fillStyle = '#e5e7ec';
+        roundRect(ctx, pad, y, contentW, 320, 18);
+        ctx.fill();
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '36px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(block.text || 'Image', SHOT_W / 2, y + 320 / 2 + 12);
+        ctx.textAlign = 'left';
+        y += 320 + 24;
+        break;
+      case 'input': {
+        const h = 96;
+        ctx.strokeStyle = '#dfe1e6';
+        ctx.lineWidth = 3;
+        roundRect(ctx, pad, y, contentW, h, 16);
+        ctx.stroke();
+        ctx.fillStyle = '#9498a3';
+        ctx.font = '36px sans-serif';
+        ctx.fillText(block.text, pad + 24, y + h / 2 + 12);
+        y += h + 24;
+        break;
+      }
+      case 'divider':
+        ctx.strokeStyle = '#e5e7ec';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pad, y);
+        ctx.lineTo(SHOT_W - pad, y);
+        ctx.stroke();
+        y += 48;
+        break;
+      case 'list':
+        ctx.fillStyle = '#14161c';
+        ctx.font = '40px sans-serif';
+        block.text
+          .split('|')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .forEach((item) => {
+            ctx.fillText('•', pad, y);
+            y = wrapText(ctx, item, pad + 40, y, contentW - 40, 52, 2) + 8;
+          });
+        y += 8;
+        break;
+      case 'card':
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#e5e7ec';
+        ctx.lineWidth = 2;
+        roundRect(ctx, pad, y, contentW, 140, 16);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#14161c';
+        ctx.font = '38px sans-serif';
+        wrapText(ctx, block.text, pad + 24, y + 60, contentW - 48, 48, 2);
+        y += 140 + 24;
+        break;
+    }
+  }
+
+  const tabY = SHOT_H - tabH;
+  ctx.strokeStyle = '#e5e7ec';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, tabY);
+  ctx.lineTo(SHOT_W, tabY);
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, tabY + 1, SHOT_W, tabH - 1);
+  const slotW = SHOT_W / currentApp.screens.length;
+  ctx.textAlign = 'center';
+  ctx.font = '32px sans-serif';
+  currentApp.screens.forEach((s, i) => {
+    ctx.fillStyle = s.id === screen.id ? app.color || '#4f46e5' : '#6b7280';
+    ctx.font = s.id === screen.id ? '700 32px sans-serif' : '32px sans-serif';
+    ctx.fillText(s.name, slotW * i + slotW / 2, tabY + tabH / 2 + 12);
+  });
+  ctx.textAlign = 'left';
+}
+
+function renderScreenshots() {
+  const grid = document.getElementById('screenshots-grid');
+  grid.innerHTML = '';
+  if (currentApp.screens.length === 0) {
+    grid.innerHTML = '<div class="empty-note">Add a screen to generate screenshots.</div>';
+    return;
+  }
+  currentApp.screens.forEach((screen) => {
+    const tile = document.createElement('div');
+    tile.className = 'screenshot-tile';
+    const canvas = document.createElement('canvas');
+    drawScreenshot(canvas, currentApp, screen);
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = screen.name;
+    const link = document.createElement('a');
+    link.className = 'btn small';
+    link.textContent = 'Download';
+    link.href = canvas.toDataURL('image/png');
+    const slug = (currentApp.name || 'app').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'app';
+    link.download = `${slug}-${(screen.name || 'screen').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+    tile.append(canvas, label, link);
+    grid.appendChild(tile);
+  });
 }
 
 // ---- Status & submission ----
