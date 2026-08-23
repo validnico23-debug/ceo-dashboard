@@ -63,6 +63,7 @@ function normalizeAll(data) {
 // deployed with a real Render/Railway Postgres instance attached — so data
 // survives redeploys. Falls back to a local JSON file for local development.
 let backend;
+let pgPool = null;
 
 if (process.env.DATABASE_URL) {
   const { Pool } = require('pg');
@@ -70,6 +71,7 @@ if (process.env.DATABASE_URL) {
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false },
   });
+  pgPool = pool;
   const ready = pool.query('CREATE TABLE IF NOT EXISTS store (id INTEGER PRIMARY KEY, data JSONB NOT NULL)');
 
   backend = {
@@ -139,4 +141,4 @@ function claimUnclaimedBusiness(data) {
   return unclaimedId ? Number(unclaimedId) : null;
 }
 
-module.exports = { read, write, update, emptyBusinessData, claimUnclaimedBusiness };
+module.exports = { read, write, update, emptyBusinessData, claimUnclaimedBusiness, pool: pgPool };
